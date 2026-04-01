@@ -1,0 +1,131 @@
+---
+description: Visão geral FAWedding API — stack, domínio, arquitetura e convenções globais
+alwaysApply: true
+---
+
+# FAWedding API — contexto para o Cursor
+
+## Rules e paths no repositório
+
+| Arquivo | Escopo |
+|---------|--------|
+| `project.mdc` | **Sempre** — visão geral e regras transversais (este arquivo) |
+| `errors.mdc` | **Sempre** — contrato de erro, `app.onError`, status |
+| `routes.mdc` | `src/index.ts` — app Hono, middlewares, `startDocs`, `app.route` |
+| `route-modules.mdc` | `src/routes/**/*.ts` — reexports de controllers para o `index` |
+| `controllers.mdc` | `src/controllers/**/*.ts` |
+| `services.mdc` | `src/services/**/*.ts` |
+| `schemas.mdc` | `src/schemas/**/*.ts` |
+| `models.mdc` | `src/models/**/*.ts` |
+
+Pastas como `core/`, `lib/`, `types/`, `utils/` seguem esta rule até existir rule dedicada.
+
+### Estrutura de pastas em `src/`
+
+```
+src/
+  index.ts          # app Hono, middlewares, onError, app.route
+  server.ts
+  controllers/      # um ficheiro por recurso: *.controller.ts (rotas Hono + OpenAPI)
+  services/         # *.service.ts (AbstractService + factories create*Service)
+  schemas/          # *.schema.ts (Zod + contratos de request/response)
+  models/           # *.model.ts (z.infer + mappers to*Response)
+  routes/           # *.routes.ts (reexport de controllers) + index.ts (barrel)
+  core/             # classes base (ex.: AbstractService)
+  lib/              # prisma, openapi, docs
+  types/            # env Hono (ApplicationVariables, AppEnv)
+```
+
+---
+
+## Resumo das rules (uma linha cada)
+
+- **`project.mdc`** — O que é o projeto, stack, camadas, convenções de API e anti-patterns gerais.
+- **`routes.mdc`** — `src/index.ts`: `Hono` com `Bindings`/`Variables`, `.basePath('/api')`, middlewares (Prisma no contexto, auth ex. Clerk, CORS), `startDocs`, `app.onError`, montagem com `app.route('/', …Controller)` sem duplicar o mesmo controller.
+- **`route-modules.mdc`** — `src/routes/`: reexport de `*Controller` por domínio (`gift.routes.ts`) e barrel `routes/index.ts` para imports em `index.ts`.
+- **`errors.mdc`** — Erros só no global: resposta `{ "errors": "mensagem" }`; `HTTPException` → status original; `ZodError` → 400; resto → 500; services lançam; controllers não montam JSON de erro com `try/catch`.
+- **`controllers.mdc`** — `describeRoute` + `mapResponses` + `tags`; `summary` e `description`; `validator()`; handler `async (c)`; `c.req.valid()`; `createXService(c)`; nunca Prisma no controller; sucesso com `c.json({ data })`.
+- **`services.mdc`** — Classes que estendem `AbstractService`; `this.prisma`; `orgId` em `where` quando multi-tenant; ações `list/create/update/delete`; retorno via mappers; sem `Context` (`c`).
+- **`schemas.mdc`** — Zod por entidade: `CREATE`, `GET`, `UPDATE`, `DELETE`, `SEARCH`, `INCLUDES`; `z.infer<typeof …>`; `partial()` em search/includes; uso com `validator()` e OpenAPI.
+- **`models.mdc`** — Tipos derivados dos schemas; mappers `to{Entity}Response` (Prisma → API); relações tipadas; sem lógica de negócio no mapper.
+
+---
+
+## Visão geral
+
+API REST em **TypeScript** para o ecossistema **FAWedding**: centraliza dados e regras do site (convidados, RSVP, presentes, mensagens e admin futuro). Objetivo: um backend único, modular em camadas e fácil de manter.
+
+## Domínio
+
+- Casamento / site do casal  
+- Convidados e **RSVP**  
+- Lista de presentes e mensagens aos noivos  
+- Evolução para áreas administrativas (gestão protegida)
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| HTTP | **Hono** (`Context` como `c`) |
+| Linguagem | **TypeScript** |
+| Dados | **PostgreSQL** + **Prisma** |
+| Validação | **Zod**, **`@hono/zod-validator`** |
+| Contrato / docs | **hono-openapi**, **zod-openapi**; referência visual (**Scalar**) quando configurado |
+| Ambiente | **Docker** (banco local); **Node** para dev/build |
+
+## Arquitetura (modular + camadas)
+
+```
+Cliente → index.ts (middlewares, docs, onError)
+       → app.route → routes/ (reexport) → controllers/
+       → services/ → models/ (mappers) + schemas/ (Zod)
+```
+
+- **`src/index.ts`:** wiring, não regra de negócio.  
+- **`src/routes/`:** reexport de controllers para `app.route` (e barrel `index.ts`).  
+- **`src/controllers/`:** instâncias `Hono`, `describeRoute`, `validator`, factories `create*Service(c)`.  
+- **`src/services/`:** regras de negócio e `this.prisma`.  
+- **`src/schemas/`:** Zod e OpenAPI.  
+- **`src/models/`:** `z.infer` e `to*Response`.  
+- **`core/`**, **`lib/`**, **`types/`**, **`utils/`:** infraestrutura e tipos compartilhados.
+
+## Fluxo de requisição e erro
+
+1. Request entra na app com **`/api`** (ou `basePath` definido).  
+2. Middlewares: contexto (ex.: Prisma), autenticação (ex.: **Clerk** ou outro middleware global), **CORS**.  
+3. Rota no controller: **`validator`** + handler; dados válidos via **`c.req.valid()`**.  
+4. Controller chama **`createXService(c)`** e retorna **`{ data }`** em sucesso.  
+5. Falhas: **services** (ou camadas inferiores) **lançam**; **`app.onError`** no `index.ts` formata **`{ errors }`** e status (**`errors.mdc`**).
+
+## Convenções gerais
+
+| Tópico | Regra |
+|--------|--------|
+| JSON | **camelCase** |
+| URLs | substantivos no **plural**, em **inglês** (`/guests`, `/venues`, …) |
+| REST | Métodos e status HTTP com semântica usual |
+| Sucesso | **`{ "data": … }`** |
+| Erro | **`{ "errors": "…" }`** (global) |
+| Multi-tenant | Filtrar por **`orgId`** nos services quando aplicável |
+
+## Regras globais obrigatórias (checklist)
+
+- Tipar **`Hono`** com **`Bindings`** (ex.: `DATABASE_URL`) e **`Variables`** (ex.: prisma, user) quando o projeto exportar esses tipos.  
+- Toda rota com entrada HTTP: **`validator`** alinhado a **`schemas/`**.  
+- Toda rota documentada: **`describeRoute`** com **`summary`**, **`description`**, **`tags`**, **`mapResponses`**.  
+- Controllers finos; **Prisma** só em **services** (via **`this.prisma`**).  
+- Erros: **não** responder erro manualmente no controller; usar **`onError`**.  
+- Migrations e **schema Prisma** como fonte de verdade do banco.
+
+## Anti-patterns (projeto)
+
+- Lógica de negócio ou Prisma no **controller**.  
+- **`req.json()`** / query crua sem **`validator`**.  
+- **`try/catch` no controller** para montar corpo de erro (duplica **`errors.mdc`**).  
+- Resposta de sucesso ou erro **inconsistente** com `{ data }` / `{ errors }`.  
+- Rotas **sem** OpenAPI ou **sem** validação onde há entrada.  
+- **`app.route`** duplicado para o **mesmo** controller.
+
+## Onde aprofundar
+
+Detalhes, exemplos de código e exceções por camada: **`routes.mdc`**, **`route-modules.mdc`**, **`errors.mdc`**, **`controllers.mdc`**, **`services.mdc`**, **`schemas.mdc`**, **`models.mdc`**.

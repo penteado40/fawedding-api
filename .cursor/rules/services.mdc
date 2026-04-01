@@ -1,0 +1,76 @@
+---
+description: Services — AbstractService, Prisma via this.prisma, orgId, mappers
+globs: src/services/**/*.ts
+alwaysApply: false
+---
+
+# Services — FAWedding API
+
+**Path:** `src/services/**/*.ts`
+
+Camada de **regras de negócio** e acesso a dados via Prisma. Não conhece HTTP nem `Context` do Hono.
+
+## Estrutura
+
+- Services são **classes**.
+- Devem **estender `AbstractService`** (cliente Prisma, `orgId` e dependências compartilhadas vêm da base).
+- Acesso ao banco exclusivamente via **`this.prisma`** (nunca importar um cliente Prisma solto no método).
+
+## Responsabilidade
+
+- **Toda** lógica de negócio que não pertence ao controller.
+- **Filtragem por `orgId`:** operações multi-tenant devem restringir dados ao contexto da organização (via `this.orgId` ou equivalente definido em `AbstractService`).
+- Regras de domínio, por exemplo:
+  - consistência entre entidades (estados, relacionamentos);
+  - validações que não são só formato de payload HTTP (regras de domínio).
+
+## Métodos
+
+- Nomeados por **ação:** `list`, `create`, `update`, `delete` (e outras ações explícitas quando necessário).
+- **Retornar dados já transformados** para o contrato da API — em geral via **mapper** (`toXxxResponse`), não devolver tipos crus do Prisma para o controller.
+
+## Integração com Prisma
+
+- Preferir chamadas explícitas: **`this.prisma.<model>.<method>`** (`findMany`, `findFirst`, `create`, `update`, etc.).
+- Em **`where`**, incluir **`orgId`** quando a entidade for escopo de organização (obrigatório no padrão multi-tenant).
+
+## Includes
+
+- Suportar **includes dinâmicos** (objeto de flags ou similar passado pelo controller/service conforme convenção do projeto).
+- Tipar entradas de include e busca com **Zod** onde fizer sentido (`IncludesVenueRequest`, schemas de search, etc.) para contrato estável entre camadas.
+
+## Exemplo obrigatório (`list`)
+
+`where` com `orgId`, `include` condicionado, resultado mapeado com `toVenueResponse`:
+
+```ts
+export class VenueService extends AbstractService {
+  async list(
+    search: SearchVenueRequest = {},
+    includes: IncludesVenueRequest,
+  ): Promise<VenueModelResponse[]> {
+    const venues = await this.prisma.venue.findMany({
+      where: {
+        orgId: this.orgId,
+        parentId: search?.parentId,
+      },
+      include: {
+        parent: includes?.parent,
+      },
+    })
+    return venues.map(toVenueResponse)
+  }
+}
+```
+
+## Anti-patterns
+
+- Importar ou receber **`Context` (`c`)** no service.
+- Retornar **resultado Prisma cru** sem passar por **mapper** quando o contrato da API for DTO/response tipado.
+- Colocar **lógica de negócio** no controller em vez do service.
+
+## Referência
+
+- Controllers e fluxo HTTP: `controllers.mdc`
+- Tipos e mappers (`to*Response`): `models.mdc`
+- Visão geral: `project.mdc`

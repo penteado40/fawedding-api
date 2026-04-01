@@ -1,0 +1,71 @@
+---
+description: Erros globais — onError, HTTPException, ZodError, formato { errors }
+alwaysApply: true
+---
+
+# Erros — FAWedding API
+
+Tratamento centralizado em **`app.onError`** no **`src/index.ts`** (ver `routes.mdc`). Camadas superiores **lançam** erros; não duplicam resposta JSON manualmente.
+
+## Tipos de erro
+
+| Tipo | Origem típica |
+|------|----------------|
+| **`HTTPException`** | Hono / fluxo HTTP explícito (`throw new HTTPException(status, { message })` ou equivalente). |
+| **`z.ZodError`** | Validação Zod fora do `validator` do Hono, ou código que reutiliza `schema.parse` e deixa propagar (evitar onde o `validator` já cobre a rota). |
+| **Erro genérico** | `Error` ou qualquer valor não mapeado acima (bugs, falhas Prisma não encapsuladas, etc.). |
+
+## Resposta padrão
+
+Corpo JSON único em todos os casos:
+
+```json
+{
+  "errors": "mensagem"
+}
+```
+
+O valor de **`errors`** é tipicamente **`err.message`** (string). Evitar formatos paralelos (`error`, `message`, objeto aninhado) salvo mudança explícita de contrato.
+
+## Regras obrigatórias
+
+- **Erro sempre tratado globalmente** — `app.onError` é a fonte da verdade para status + corpo de erro.
+- **Services podem lançar erros** — `HTTPException` para regras de negócio com status conhecido; ou `Error` / erros de infra que o handler global mapeia para **500**.
+- **Controllers não devem tratar erro manualmente** — sem `try/catch` para montar `c.json` de erro; deixar propagar para `onError`. Handlers só retornam sucesso (`c.json({ data: ... })`) ou deixam a exceção subir.
+
+## Status codes
+
+| Entrada | Status HTTP |
+|---------|-------------|
+| **`HTTPException`** | **`err.status`** (preservar o status original). |
+| **`z.ZodError`** | **400**. |
+| **Demais (default)** | **500**. |
+
+## Referência de implementação (`index.ts`)
+
+```ts
+app.onError(async (err, c) => {
+  if (err instanceof HTTPException) {
+    c.status(err.status)
+    return c.json({ errors: err.message })
+  }
+  if (err instanceof z.ZodError) {
+    c.status(400)
+    return c.json({ errors: err.message })
+  }
+  c.status(500)
+  return c.json({ errors: err.message })
+})
+```
+
+## Anti-patterns
+
+- **`try/catch` em controller** só para logar e relançar pode ser aceitável; **catch** para responder JSON de erro manualmente **não** — duplica o contrato e diverge do handler global.
+- **Resposta inconsistente** — ex.: `{ message: '...' }` em uma rota e `{ errors: '...' }` em outra.
+- **Engolir erro** no service (`catch` vazio ou retorno `null` sem motivo) quando deveria falhar a requisição.
+
+## Referência
+
+- Montagem da app e `onError`: `routes.mdc`
+- Handlers finos: `controllers.mdc`
+- Lançamentos no domínio: `services.mdc`

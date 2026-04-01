@@ -1,0 +1,136 @@
+---
+description: Zod schemas por entidade — CREATE/SEARCH/INCLUDES, infer, validator
+globs: src/schemas/**/*.ts
+alwaysApply: false
+---
+
+# Schemas — FAWedding API
+
+**Path:** `src/schemas/**/*.ts`
+
+Contratos de entrada/saída e documentação OpenAPI via **Zod**. Uma pasta/arquivo por entidade ou convenção única do projeto; nomes estáveis e reutilização entre `validator()`, `describeRoute` e services.
+
+## Organização
+
+- Agrupar por **entidade**, com objeto único de requests por verbo/ação:
+
+```ts
+VenueRequestSchema.CREATE
+VenueRequestSchema.UPDATE
+GuestRequestSchema.SEARCH
+```
+
+- Responses seguem o mesmo padrão por entidade:
+
+```ts
+VenueResponseSchema.COLLECTION
+GuestResponseSchema.SINGLE
+```
+
+## Tipos de schema (obrigatórios por entidade exposta na API)
+
+| Chave        | Uso típico                                      |
+|-------------|--------------------------------------------------|
+| **CREATE**  | Body em `POST`                                   |
+| **GET**     | Params (ex.: id) em `GET`/`DELETE` quando aplicável |
+| **UPDATE**  | Body em `PATCH`/`PUT`                            |
+| **DELETE**  | Params ou body mínimo para remoção               |
+| **SEARCH**  | Query em listagens (`GET` com filtros)           |
+| **INCLUDES** | Flags de relacionamento (ex.: `?include=...`) |
+
+Ajuste nomes de campos (`venueId` vs `id`) ao padrão das rotas, mantendo consistência em toda a entidade.
+
+## Validação (Zod)
+
+- Preferir encadeamento explícito: `z.string().min(1).max(200)`, `z.uuidv4()`, etc.
+- IDs: **`z.uuidv4()`** quando o domínio for UUID v4.
+- Campos opcionais/nulos: `.optional()`, `.nullable()`, conforme o modelo.
+
+## Tipagem
+
+- Para o tipo TypeScript derivado do schema:
+
+```ts
+type CreateGuestRequest = z.infer<typeof GuestRequestSchema.CREATE>
+type GuestModel = z.infer<typeof GuestModelSchema>
+```
+
+- **Sempre** usar **`z.infer<typeof ...>`** em cima do schema exportado (evita drift entre validação e tipo).
+
+## Reutilização
+
+- Extrair blocos comuns em schemas base (`GuestBaseModelSchema`) e usar **`.extend()`** / **`.merge()`** quando fizer sentido.
+- **SEARCH** e **INCLUDES**: montar o objeto e aplicar **`.partial()`** no final para filtros e flags opcionais sem duplicar dezenas de campos.
+
+## Integração com Hono
+
+- Schemas de request entram no **`validator('query' | 'json' | 'param', Schema)`** nos controllers.
+- Schemas de response alimentam **`describeRoute`** / `mapResponses` (conforme o projeto), mantendo a mesma fonte de verdade que o Zod.
+
+## Exemplo obrigatório — entidade **Guest**
+
+Modelo base, request por ação, search/includes parciais e responses de coleção/item:
+
+```ts
+const GuestBaseModelSchema = z.object({
+  id: z.uuidv4(),
+  fullName: z.string(),
+  email: z.string().email(),
+  orgId: z.uuidv4(),
+})
+
+export const GuestModelSchema = GuestBaseModelSchema.extend({
+  plusOneName: z.string().nullable(),
+})
+
+export const GuestRequestSchema = {
+  CREATE: z.object({
+    fullName: z.string().min(1).max(200),
+    email: z.string().email(),
+    plusOneName: z.string().min(1).max(200).optional(),
+  }),
+  GET: z.object({
+    guestId: z.uuidv4(),
+  }),
+  UPDATE: z.object({
+    fullName: z.string().min(1).max(200),
+    email: z.string().email(),
+    plusOneName: z.string().min(1).max(200).optional(),
+  }),
+  DELETE: z.object({
+    guestId: z.uuidv4(),
+  }),
+  SEARCH: z
+    .object({
+      email: z.string().email(),
+    })
+    .partial(),
+  INCLUDES: z
+    .object({
+      rsvp: z.boolean(),
+    })
+    .partial(),
+}
+
+export const GuestResponseSchema = {
+  COLLECTION: z.object({
+    data: z.array(GuestModelSchema),
+  }),
+  SINGLE: z.object({
+    data: GuestModelSchema.nullable(),
+  }),
+}
+```
+
+**Venue** ou **RSVP** seguem o mesmo arranjo (`CREATE` … `INCLUDES`, `ResponseSchema`); para hierarquias (ex.: `parent` em Venue), usar `z.lazy()` no modelo como no restante do projeto.
+
+## Anti-patterns
+
+- Colocar **validação de formato** (min/max, uuid, email) em **controller** ou **service** — pertence ao schema + `validator`.
+- **Schemas soltos** sem agrupamento por entidade (`CREATE`/`SEARCH` espalhados em arquivos diferentes sem convenção clara).
+- Duplicar o mesmo shape em três arquivos em vez de base + `partial()`/`.extend()`.
+
+## Referência
+
+- Controllers e `validator`: `controllers.mdc`
+- Visão geral: `project.mdc`
