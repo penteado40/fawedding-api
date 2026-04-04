@@ -4,6 +4,7 @@ import { GiftModelSchema, GiftRequestSchema } from '../schemas/gift.schema'
 
 export type GiftModelResponse = z.infer<typeof GiftModelSchema>
 export type CreateGiftRequest = z.infer<typeof GiftRequestSchema.CREATE>
+export type CreateGiftFormRequest = z.infer<typeof GiftRequestSchema.CREATE_FORM>
 export type UpdateGiftRequest = z.infer<typeof GiftRequestSchema.UPDATE>
 export type SearchGiftRequest = z.infer<typeof GiftRequestSchema.SEARCH>
 

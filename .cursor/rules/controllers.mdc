@@ -66,12 +66,70 @@ venueController.get(
 
 Para **guests**, o mesmo molde: `GuestRequestSchema.SEARCH`, `GuestResponseSchema.COLLECTION`, `createGuestService(c)`, `service.list(...)`.
 
+## Upload de arquivo via multipart/form-data
+
+Rotas que recebem arquivo de imagem usam `multipart/form-data`. O padrão obrigatório é:
+
+1. **Schema de validação** (`CREATE_FORM`): campos de texto com `z.coerce.number()` para campos numéricos. O campo `image` (File) **não entra** no schema Zod — é extraído separadamente após a validação.
+2. **`validator('form', Schema.CREATE_FORM)`** — valida os campos de texto do form.
+3. **Extração do arquivo** via `c.req.parseBody()` no handler — retorna o campo `image` como instância de `File`.
+4. **Geração de nome único:** `randomUUID() + '-' + file.name`.
+5. **Salvar em `uploads/`** (raiz do projeto): `fs.writeFileSync(path.join(uploadsDir, filename), Buffer.from(await file.arrayBuffer()))`.
+6. **Passar `filename`** (só o nome, não o path) ao service via `service.create({ ...body, image: filename })`.
+
+O campo `image` no banco armazena apenas o **nome do arquivo** (ex.: `uuid-nome.jpg`). A URL pública é montada pelo cliente com `/uploads/<filename>`.
+
+### Exemplo (POST gifts)
+
+```ts
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { randomUUID } from 'node:crypto'
+
+const uploadsDir = path.join(process.cwd(), 'uploads')
+
+giftController.post(
+  '/',
+  describeRoute({
+    summary: 'Create gift',
+    tags: ['Gifts'],
+    description: 'Cria presente via multipart/form-data.',
+    requestBody: {
+      required: true,
+      content: { 'multipart/form-data': { schema: resolver(GiftRequestSchema.CREATE_FORM) } },
+    },
+    responses: mapResponses({ schema: GiftResponseSchema.SINGLE, successMessage: 'Gift created successfully', status: 201 }),
+  }),
+  validator('form', GiftRequestSchema.CREATE_FORM),
+  async (c) => {
+    const body = c.req.valid('form')
+    const formData = await c.req.parseBody()
+    const imageFile = formData['image']
+
+    let image: string | null = null
+    if (imageFile instanceof File) {
+      const filename = `${randomUUID()}-${imageFile.name}`
+      fs.writeFileSync(path.join(uploadsDir, filename), Buffer.from(await imageFile.arrayBuffer()))
+      image = filename
+    }
+
+    const service = createGiftService(c)
+    const data = await service.create({ ...body, image })
+    return c.json({ data }, 201)
+  },
+)
+```
+
+A pasta `uploads/` é criada no startup via `fs.mkdirSync` em `src/index.ts` e servida como estática em `/uploads/*` via `serveStatic` do `@hono/node-server/serve-static`.
+
 ## Anti-patterns
 
 - Acessar **banco** (Prisma, SQL) no controller.
 - **Pular** `validator` e ainda assim ler body/query/param.
 - Colocar **regra de negócio** no handler (deve ficar no service).
 - Retornar payload solto sem wrapper **`{ data }`** (salvo exceção documentada em outra rule).
+- Salvar path absoluto no banco — apenas o **nome do arquivo**.
+- Validar o campo `File` com Zod no schema de form — usar `instanceof File` no handler.
 
 ## Referência
 

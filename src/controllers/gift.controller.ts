@@ -1,10 +1,16 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import { describeRoute } from 'hono-openapi'
 import { resolver, validator } from 'hono-openapi/zod'
 import { mapResponses } from '../lib/openapi'
 import type { AppEnv } from '../types/hono-env'
 import { GiftRequestSchema, GiftResponseSchema } from '../schemas/gift.schema'
 import { createGiftService } from '../services/gift.service'
+
+const uploadsDir = path.join(process.cwd(), 'uploads')
 
 export const giftController = new Hono<AppEnv>()
 
@@ -33,13 +39,13 @@ giftController.post(
   '/',
   describeRoute({
     summary: 'Create gift',
-    description: 'Adds a new gift item with name, image URL, Amazon link and price.',
+    description: 'Adds a new gift item via multipart/form-data with name, price, optional Amazon link and image file.',
     tags: ['Gifts'],
     requestBody: {
       required: true,
       content: {
-        'application/json': {
-          schema: resolver(GiftRequestSchema.CREATE),
+        'multipart/form-data': {
+          schema: resolver(GiftRequestSchema.CREATE_FORM),
         },
       },
     },
@@ -49,11 +55,22 @@ giftController.post(
       status: 201,
     }),
   }),
-  validator('json', GiftRequestSchema.CREATE),
+  validator('form', GiftRequestSchema.CREATE_FORM),
   async (c) => {
-    const body = c.req.valid('json')
+    const body = c.req.valid('form')
+    const formData = await c.req.parseBody()
+    const imageFile = formData['image']
+
+    let image: string | null = null
+    if (imageFile instanceof File) {
+      const filename = `${randomUUID()}-${imageFile.name}`
+      const buffer = Buffer.from(await imageFile.arrayBuffer())
+      fs.writeFileSync(path.join(uploadsDir, filename), buffer)
+      image = filename
+    }
+
     const service = createGiftService(c)
-    const data = await service.create(body)
+    const data = await service.create({ ...body, image })
     return c.json({ data }, 201)
   },
 )

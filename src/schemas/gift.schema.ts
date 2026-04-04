@@ -3,8 +3,8 @@ import { z } from 'zod'
 export const GiftModelSchema = z.object({
   id: z.uuidv4(),
   name: z.string(),
-  image: z.string().url(),
-  amazonLink: z.string().url(),
+  image: z.string().nullable(),
+  amazonLink: z.string().url().nullable(),
   price: z.number().positive(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -13,13 +13,18 @@ export const GiftModelSchema = z.object({
 export const GiftRequestSchema = {
   CREATE: z.object({
     name: z.string().min(1).max(200),
-    image: z.string().url().optional().nullable(),
+    image: z.string().optional().nullable(),
     amazonLink: z.string().url().optional().nullable(),
     price: z.number().positive(),
   }),
+  CREATE_FORM: z.object({
+    name: z.string().min(1).max(200),
+    price: z.coerce.number().positive(),
+    amazonLink: z.string().url().optional().nullable(),
+  }),
   UPDATE: z.object({
     name: z.string().min(1).max(200).optional(),
-    image: z.string().url().optional().nullable(),
+    image: z.string().optional().nullable(),
     amazonLink: z.string().url().optional().nullable(),
     price: z.number().positive().optional(),
   }),
