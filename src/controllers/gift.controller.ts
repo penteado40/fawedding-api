@@ -9,7 +9,7 @@ import { createGiftService } from '../services/gift.service'
 export const giftController = new Hono<AppEnv>()
 
 giftController.get(
-  '/gifts',
+  '/',
   describeRoute({
     summary: 'List gifts',
     description:
@@ -30,7 +30,7 @@ giftController.get(
 )
 
 giftController.post(
-  '/gifts',
+  '/',
   describeRoute({
     summary: 'Create gift',
     description: 'Adds a new gift item with name, image URL, Amazon link and price.',
@@ -59,7 +59,7 @@ giftController.post(
 )
 
 giftController.get(
-  '/gifts/:id',
+  '/:id',
   describeRoute({
     summary: 'Get gift by id',
     description: 'Returns a single gift item by UUID.',
@@ -79,7 +79,7 @@ giftController.get(
 )
 
 giftController.put(
-  '/gifts/:id',
+  '/:id',
   describeRoute({
     summary: 'Update gift',
     description: 'Updates an existing gift. Omitted fields are left unchanged.',
@@ -109,7 +109,7 @@ giftController.put(
 )
 
 giftController.delete(
-  '/gifts/:id',
+  '/:id',
   describeRoute({
     summary: 'Delete gift',
     description: 'Removes a gift from the list and returns the deleted record.',

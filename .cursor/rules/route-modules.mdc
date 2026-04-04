@@ -1,5 +1,5 @@
 ---
-description: Reexports de routers Hono por domínio (src/routes)
+description: Routers Hono por domínio (src/routes)
 globs: src/routes/**/*.ts
 alwaysApply: false
 ---
@@ -8,12 +8,15 @@ alwaysApply: false
 
 **Path:** `src/routes/**/*.ts`
 
-- Cada recurso pode ter um `*.routes.ts` que **reexporta** o `Hono` definido em `src/controllers/*.controller.ts`, para o `app.route()` em `src/index.ts` importar de um único lugar.
-- **`src/routes/index.ts`** agrega os exports (`giftController`, futuros controllers) para `import { … } from './routes'` no `index` da app.
+Ver `routes.mdc` para a documentação completa do padrão de route modules.
 
-Não colocar handlers HTTP aqui — só reexport ou barrel.
+Resumo:
+- Cada recurso tem `[modulo].routes.ts` com instância própria de `Hono` que monta o controller correspondente.
+- `routes/index.ts` é o único aggregador — registra cada módulo com `routes.route('/nome', modulo)`.
+- Novos módulos sempre criam seu próprio arquivo de rotas e se registram no index.
+- Nunca usar `routes/index.ts` para handlers HTTP diretos.
 
 ## Referência
 
-- Montagem da app: `routes.mdc` (`src/index.ts`)
+- Padrão completo: `routes.mdc`
 - Handlers: `controllers.mdc`

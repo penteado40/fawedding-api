@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
-import { giftController } from './routes'
+import { routes } from './routes'
 import type { AppEnv } from './types/hono-env'
 
 export const app = new Hono<AppEnv>().basePath('/api')
@@ -46,7 +46,7 @@ app.onError((err, c) => {
   return c.json({ errors: err instanceof Error ? err.message : 'Internal Server Error' })
 })
 
-app.route('/gifts', giftController)
+app.route('/', routes)
 
 
 export default app

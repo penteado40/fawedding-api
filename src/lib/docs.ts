@@ -16,7 +16,7 @@ export function startDocs(app: Hono<AppEnv>) {
         },
         servers: [
           {
-            url: 'http://localhost:3000/api',
+            url: 'http://localhost:3333/',
             description: 'Local',
           },
         ],

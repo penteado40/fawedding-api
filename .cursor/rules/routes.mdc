@@ -1,127 +1,125 @@
 ---
 description: index.ts — Hono app, middlewares, docs, onError, app.route
-globs: src/index.ts
+globs: src/index.ts,src/routes/**/*.ts
 alwaysApply: false
 ---
 
-# Routes — FAWedding API (`src/index.ts`)
+# Routes — FAWedding API
 
-**Path:** `src/index.ts` — ponto de montagem da API: tipos do Hono, middlewares globais, documentação, erro e **`app.route()`** dos controllers.
+## `src/index.ts` — ponto de montagem da API
 
-Os handlers continuam nos **controllers** (`describeRoute`, `mapResponses`, `validator`, `tags`, `summary`, `description`); este arquivo só organiza a app e registra routers.
+Tipos do Hono, middlewares globais, documentação, erro e **`app.route('/', routes)`** importado de `src/routes/index.ts`. Nenhum handler HTTP aqui.
 
-## App Hono
+### App Hono
 
-- Instanciar com **Bindings** e **Variables** tipados (ex.: `DATABASE_URL` em `Bindings`; `ApplicationVariables` em `Variables` — prisma no contexto, etc.).
-- Usar **`.basePath('/api')`** (ou o prefixo único do projeto) para todas as rotas abaixo.
+- Instanciar com **Bindings** e **Variables** tipados.
+- Usar **`.basePath('/api')`** para todas as rotas da API.
+- Montar o aggregador com **`app.route('/', routes)`** — o prefixo `/api` vem do `basePath`.
 
-## Middlewares (ordem)
+### Middlewares (ordem)
 
-1. **Prisma (ou datastore):** middleware que obtém cliente com `getPrisma(c.env.DATABASE_URL)` (ou equivalente) e **`c.set('prisma', prisma)`** antes de `next()`.
-2. **Autenticação global:** ex. **`clerkMiddleware()`** em `'*'` quando o projeto usar Clerk.
-3. **CORS:** `app.use('*', async (c, next) => cors({ ... })(c, next))` com origem, headers e métodos alinhados ao front.
+1. **Prisma (ou datastore):** `getPrisma(url)` + `c.set('prisma', prisma)` antes de `next()`.
+2. **Autenticação global:** ex. `clerkMiddleware()` em `'*'`.
+3. **CORS:** `app.use('*', cors({ ... }))`.
 
-Ordem importa: o que precisa de `env`/contexto deve rodar antes dos controllers.
+### Documentação e erros
 
-## Documentação e erros
+- **`startDocs(app)`** após middlewares, antes do `app.route`.
+- **`app.onError`** — tratar `HTTPException`, `z.ZodError` e demais com `{ errors: err.message }`.
 
-- **`startDocs(app)`** — registrar OpenAPI/Scalar após middlewares essenciais e antes ou junto do registro de rotas (seguir a função do projeto).
-- **`app.onError`** — tratar pelo menos:
-  - **`HTTPException`** → status do erro, corpo (ex.: `{ errors: err.message }`);
-  - **`z.ZodError`** → **400**, mensagem de validação;
-  - **demais** → **500**, mensagem genérica.
-
-Manter o formato de erro consistente com o restante da API.
-
-## Registro de controllers
-
-- **Um controller por entidade/recurso** (cada um é um `Hono` com rotas internas e prefixos próprios), definido em **`src/controllers/*.controller.ts`**.
-- Em **`src/routes/`**, ficheiros `*.routes.ts` reexportam o controller; **`src/routes/index.ts`** agrega para `import { giftController } from './routes'` no `index` da app.
-- Montar na app raiz com **`app.route('/', nomeController)`** — o prefixo de recurso (ex.: `/gifts`, `/guests`) fica **dentro** do controller, não duplicado no `index`.
-- **Não** repetir `app.route('/', mesmoController)` duas vezes para o mesmo módulo.
-
-Exemplo de wiring (nomes adaptáveis ao FAWedding):
+### Exemplo de wiring
 
 ```ts
-const app = new Hono<{
-  Bindings: { DATABASE_URL: string }
-  Variables: ApplicationVariables
-}>().basePath('/api')
+import { routes } from './routes'
 
-app.use(async (c, next) => {
-  const prisma = getPrisma(c.env.DATABASE_URL)
-  c.set('prisma', prisma)
-  await next()
-})
+export const app = new Hono<AppEnv>().basePath('/api')
 
-app.use('*', clerkMiddleware())
-
-app.use('*', async (c, next) => {
-  return cors({
-    origin: '*',
-    allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 600,
-    credentials: true,
-  })(c, next)
-})
+// middlewares ...
 
 startDocs(app)
 
-app.onError(async (err, c) => {
-  if (err instanceof HTTPException) {
-    c.status(err.status)
-    return c.json({ errors: err.message })
-  }
-  if (err instanceof z.ZodError) {
-    c.status(400)
-    return c.json({ errors: err.message })
-  }
-  c.status(500)
-  return c.json({ errors: err.message })
-})
+app.onError((err, c) => { /* ... */ })
 
-app.route('/', healthController)
-app.route('/', venueController)
-app.route('/', guestController)
+app.route('/', routes)
 ```
 
-## Estrutura das rotas (nos controllers)
+---
 
-- Cada rota HTTP: **`describeRoute`** + **`mapResponses`** + **`tags`**.
-- **`summary`** e **`description`** obrigatórios no `describeRoute`.
-- Sempre **`validator()`** quando houver query/body/param.
+## `src/routes/` — módulos de rotas
 
-## Exemplo mínimo — GET no controller (não no `index`)
+### Padrão: um arquivo por módulo + index agregador
+
+#### `[modulo].routes.ts` — router de módulo
+
+Cada recurso tem seu próprio arquivo que:
+1. Instancia um **`new Hono<AppEnv>()`** próprio.
+2. Monta o controller correspondente com **`router.route('/', controller)`**.
+3. Exporta o router.
 
 ```ts
-venueController.get(
-  '/venues',
-  describeRoute({
-    summary: 'List all venues',
-    description: 'Returns venues for the current organization.',
-    tags: ['Venues'],
-    responses: mapResponses({
-      schema: VenueResponseSchema.COLLECTION,
-      successMessage: 'Venues found successfully',
-    }),
-  }),
-  validator('query', VenueRequestSchema.SEARCH),
-  async (c) => {
-    const search = c.req.valid('query')
-    const service = createVenueService(c)
-    const data = await service.list(search, { parent: true })
-    return c.json({ data })
-  },
-)
+// src/routes/gift.routes.ts
+import { Hono } from 'hono'
+import type { AppEnv } from '../types/hono-env'
+import { giftController } from '../controllers/gift.controller'
+
+const giftRouter = new Hono<AppEnv>()
+
+giftRouter.route('/', giftController)
+
+export { giftRouter }
 ```
+
+#### `routes/index.ts` — único aggregador
+
+É o **único** ponto que agrega todos os módulos. Regras:
+- Instancia um **`new Hono<AppEnv>()`** chamado `routes`.
+- Registra cada módulo com **`routes.route('/nome-do-recurso', modulo)`** — aqui fica o prefixo de path (ex.: `/gifts`, `/guests`).
+- Exporta `routes` para `src/index.ts`.
+- **Nunca** conter lógica de negócio ou handlers HTTP.
+
+```ts
+// src/routes/index.ts
+import { Hono } from 'hono'
+import type { AppEnv } from '../types/hono-env'
+import { giftRouter } from './gift.routes'
+
+const routes = new Hono<AppEnv>()
+
+routes.route('/gifts', giftRouter)
+
+export { routes }
+```
+
+#### Controllers — paths relativos
+
+Controllers definem rotas **sem** o prefixo do recurso (relativo à raiz do router):
+
+```ts
+// src/controllers/gift.controller.ts
+giftController.get('/', ...)       // não '/gifts'
+giftController.get('/:id', ...)    // não '/gifts/:id'
+```
+
+O prefixo `/gifts` é adicionado pelo `routes/index.ts`.
+
+---
+
+## Adicionando um novo módulo
+
+1. Criar `src/controllers/[modulo].controller.ts` com rotas relativas (`/`, `/:id`, etc.).
+2. Criar `src/routes/[modulo].routes.ts` com `new Hono`, montar o controller, exportar o router.
+3. Registrar no `src/routes/index.ts` com `routes.route('/nome', moduloRouter)`.
+4. **Nunca** registrar rotas diretamente no `routes/index.ts`.
+
+---
 
 ## Anti-patterns
 
-- **Duplicar** `app.route('/', controller)` para o mesmo controller.
-- Rota em controller **sem** documentação OpenAPI ou **sem** `validator` quando houver entrada HTTP.
-- Lógica de negócio ou queries no `index.ts` — só wiring, middleware e tratamento global de erro.
+- **Duplicar** `routes.route('/gifts', ...)` para o mesmo módulo.
+- Handlers HTTP dentro de `src/routes/` — apenas wiring.
+- Prefixo de recurso no controller (ex.: `/gifts/...`) — deve ficar no `routes/index.ts`.
+- `app.route('/gifts', controller)` direto no `src/index.ts` — sempre usar o aggregador.
+- Re-exports simples sem instância Hono própria em `*.routes.ts`.
 
 ## Referência
 
