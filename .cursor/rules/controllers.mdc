@@ -66,6 +66,33 @@ venueController.get(
 
 Para **guests**, o mesmo molde: `GuestRequestSchema.SEARCH`, `GuestResponseSchema.COLLECTION`, `createGuestService(c)`, `service.list(...)`.
 
+## Servindo imagens — GET /gifts/uploads/:filename
+
+Imagens são servidas em `/api/gifts/uploads/:filename`. O campo `image` no banco armazena **apenas o nome do arquivo** (ex.: `uuid-nome.jpg`). O frontend deve montar a URL completa concatenando a base URL da API com o filename:
+
+```ts
+const imageUrl = `${API_BASE_URL}/api/gifts/uploads/${gift.image}`
+```
+
+A rota usa `serveStatic` do `@hono/node-server/serve-static` para servir o arquivo (Content-Type automático por extensão). Se o arquivo não existir, `serveStatic` chama `next()` e o handler final retorna `404 { message: 'Image not found' }`.
+
+Padrão obrigatório para rotas de arquivo estático:
+
+```ts
+giftController.get(
+  '/uploads/:filename',
+  describeRoute({ ... responses: { 200: image/*, 404: json } }),
+  validator('param', GiftRequestSchema.UPLOADS),
+  serveStatic({
+    root: './',
+    rewriteRequestPath: (reqPath) => `/uploads/${reqPath.split('/').pop()}`,
+  }),
+  async (c) => c.json({ message: 'Image not found' }, 404),
+)
+```
+
+Essa rota deve ser registrada **antes de `/:id`** no controller para evitar conflitos de matching.
+
 ## Upload de arquivo via multipart/form-data
 
 Rotas que recebem arquivo de imagem usam `multipart/form-data`. O padrão obrigatório é:

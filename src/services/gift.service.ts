@@ -26,15 +26,15 @@ export class GiftService extends AbstractService {
     const gift = await this.prisma.gift.create({
       data: {
         name: data.name,
-        image: data.image,
-        amazonLink: data.amazonLink,
+        image: data.image ?? null,
+        amazonLink: data.amazonLink ?? null,
         price: new Prisma.Decimal(data.price),
       },
     })
     return toGiftResponse(gift)
   }
 
-  async update(id: string, data: UpdateGiftRequest): Promise<GiftModelResponse> {
+  async update(id: number, data: UpdateGiftRequest): Promise<GiftModelResponse> {
     const existing = await this.prisma.gift.findUnique({ where: { id } })
     if (!existing) {
       throw new HTTPException(404, { message: 'Gift not found' })
@@ -47,7 +47,7 @@ export class GiftService extends AbstractService {
     return toGiftResponse(gift)
   }
 
-  async delete(id: string): Promise<GiftModelResponse> {
+  async delete(id: number): Promise<GiftModelResponse> {
     const existing = await this.prisma.gift.findUnique({ where: { id } })
     if (!existing) {
       throw new HTTPException(404, { message: 'Gift not found' })
@@ -56,7 +56,7 @@ export class GiftService extends AbstractService {
     return toGiftResponse(gift)
   }
 
-  async getById(id: string): Promise<GiftModelResponse> {
+  async getById(id: number): Promise<GiftModelResponse> {
     const gift = await this.prisma.gift.findUnique({ where: { id } })
     if (!gift) {
       throw new HTTPException(404, { message: 'Gift not found' })
@@ -68,8 +68,8 @@ export class GiftService extends AbstractService {
 function buildUpdateInput(data: UpdateGiftRequest): Prisma.GiftUpdateInput {
   const out: Prisma.GiftUpdateInput = {}
   if (data.name !== undefined) out.name = data.name
-  if (data.image !== undefined) out.image = data.image
-  if (data.amazonLink !== undefined) out.amazonLink = data.amazonLink
+  if (data.image !== undefined) out.image = { set: data.image ?? null }
+  if (data.amazonLink !== undefined) out.amazonLink = { set: data.amazonLink ?? null }
   if (data.price !== undefined) out.price = new Prisma.Decimal(data.price)
   return out
 }

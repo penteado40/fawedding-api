@@ -29,8 +29,8 @@ GuestResponseSchema.SINGLE
 
 ## Validação (Zod)
 
-- Preferir encadeamento explícito: `z.string().min(1).max(200)`, `z.uuidv4()`, etc.
-- IDs: **`z.uuidv4()`** quando o domínio for UUID v4.
+- Preferir encadeamento explícito: `z.string().min(1).max(200)`, `z.number().int()`, etc.
+- IDs: **`z.number().int()`** no model schema (resposta); **`z.coerce.number().int().positive()`** em params de rota (GET/DELETE) — path params chegam como string via HTTP e precisam de coerção.
 - Campos opcionais/nulos: `.optional()`, `.nullable()`, conforme o modelo.
 
 ## Tipagem
@@ -56,10 +56,10 @@ type GuestModel = z.infer<typeof GuestModelSchema>
 
 ```ts
 const GuestBaseModelSchema = z.object({
-  id: z.uuidv4(),
+  id: z.number().int(),
   fullName: z.string(),
   email: z.string().email(),
-  orgId: z.uuidv4(),
+  orgId: z.number().int(),
 })
 
 export const GuestModelSchema = GuestBaseModelSchema.extend({
@@ -73,7 +73,7 @@ export const GuestRequestSchema = {
     plusOneName: z.string().min(1).max(200).optional(),
   }),
   GET: z.object({
-    guestId: z.uuidv4(),
+    guestId: z.number().int(),
   }),
   UPDATE: z.object({
     fullName: z.string().min(1).max(200),
@@ -81,7 +81,7 @@ export const GuestRequestSchema = {
     plusOneName: z.string().min(1).max(200).optional(),
   }),
   DELETE: z.object({
-    guestId: z.uuidv4(),
+    guestId: z.number().int(),
   }),
   SEARCH: z
     .object({
