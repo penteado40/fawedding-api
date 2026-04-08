@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 model Gift {
