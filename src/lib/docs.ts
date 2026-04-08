@@ -4,6 +4,11 @@ import { openAPISpecs } from 'hono-openapi'
 import type { AppEnv } from '../types/hono-env'
 
 export function startDocs(app: Hono<AppEnv>) {
+  const isProduction = process.env.NODE_ENV === 'production'
+  const serverUrl = isProduction
+    ? process.env.API_URL ?? 'https://sua-api.onrender.com'
+    : `http://localhost:${process.env.PORT ?? 3333}`
+    
   app.get(
     '/openapi',
     openAPISpecs(app as unknown as Hono, {
@@ -16,8 +21,8 @@ export function startDocs(app: Hono<AppEnv>) {
         },
         servers: [
           {
-            url: 'http://localhost:3333/',
-            description: 'Local',
+            url: serverUrl,
+            description: isProduction ? 'Produção' : 'Local',
           },
         ],
       },
