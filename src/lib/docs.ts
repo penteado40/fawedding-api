@@ -7,7 +7,7 @@ export function startDocs(app: Hono<AppEnv>) {
   const isProduction = process.env.NODE_ENV === 'production'
   const serverUrl = isProduction
     ? process.env.API_URL ?? 'https://fawedding-api.onrender.com/'
-    : `http://localhost:${process.env.PORT ?? 3333}`
+    : `http://localhost:${process.env.PORT ?? 3000}`
     
   app.get(
     '/openapi',

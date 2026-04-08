@@ -14,19 +14,19 @@ export const GiftRequestSchema = {
   CREATE: z.object({
     name: z.string().min(1).max(200),
     image: z.string().optional().nullable(),
-    amazonLink: z.string().url().optional().nullable(),
+    amazonLink: z.union([z.string().url(), z.literal(''), z.null()]).optional(),
     price: z.number().positive(),
   }),
   CREATE_FORM: z.object({
     name: z.string().min(1).max(200),
     price: z.coerce.number().positive(),
-    amazonLink: z.string().url().optional().nullable(),
+    amazonLink: z.union([z.string().url(), z.literal(''), z.null()]).optional(),
     image: z.any().optional().meta({ type: 'string', format: 'binary' }),
   }),
   UPDATE: z.object({
     name: z.string().min(1).max(200).optional(),
     image: z.string().optional().nullable(),
-    amazonLink: z.string().url().optional().nullable(),
+    amazonLink: z.union([z.string().url(), z.literal(''), z.null()]).optional(),
     price: z.number().positive().optional(),
   }),
   UPDATE_FORM: z.object({

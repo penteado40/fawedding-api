@@ -12,7 +12,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.11",
     "@hono/zod-validator": "^0.7.2",
-    "@prisma/client": "^6.3.1",
+    "@prisma/client": "^5.22.0",
     "@prisma/extension-accelerate": "^1.2.2",
     "@scalar/hono-api-reference": "^0.9.13",
     "hono": "^4.7.1",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "prisma": "^6.3.1",
+    "prisma": "^5.22.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0"
   }
