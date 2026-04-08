@@ -1,10 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 model Gift {
