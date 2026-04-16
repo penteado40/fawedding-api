@@ -28,7 +28,7 @@ model Rsvp {
   name      String
   email     String     @unique
   phone     String
-  status    RsvpStatus @default(PENDING)
+  status    RsvpStatus @default(CONFIRMED)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
