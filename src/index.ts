@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
 import { routes } from './routes'
+import { authMiddleware } from './middlewares/auth.middleware'
 import type { AppEnv } from './types/hono-env'
 
 fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true })
@@ -36,6 +37,8 @@ app.use(
 )
 
 app.use('/uploads/*', serveStatic({ root: './' }))
+
+app.use('*', authMiddleware)
 
 startDocs(app)
 

@@ -25,6 +25,15 @@ export function startDocs(app: Hono<AppEnv>) {
             description: isProduction ? 'Produção' : 'Local',
           },
         ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+            },
+          },
+        },
+        security: [{ bearerAuth: [] }],
       },
     }),
   )

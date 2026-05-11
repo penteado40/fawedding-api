@@ -34,3 +34,14 @@ model Rsvp {
 
   @@map("rsvps")
 }
+
+model ApiToken {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  token     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("api_tokens")
+}
