@@ -25,7 +25,7 @@ API REST para o ecossistema **FAWedding** — centraliza dados e regras do site 
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/fawedding-api.git
+git clone https://github.com/penteado40/fawedding-api.git
 cd fawedding-api
 ```
 
