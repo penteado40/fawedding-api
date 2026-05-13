@@ -1,87 +1,170 @@
-# README.md — FAWedding API
+# FAWedding API
 
-## 📌 Visão Geral
+API REST para o ecossistema **FAWedding** — centraliza dados e regras do site de casamento: convidados, RSVP, lista de presentes, mensagens aos noivos e área administrativa.
 
-O **fawedding-api** é uma API REST responsável por gerenciar os dados e regras de negócio do sistema FAWedding.
+## Stack
 
-O objetivo do projeto é centralizar operações relacionadas ao ecossistema do site de casamento, como convidados, confirmações de presença (RSVP), presentes, mensagens e futuras funcionalidades administrativas.
-
-A aplicação será construída utilizando **Node.js + TypeScript**, seguindo boas práticas de arquitetura backend moderna, com foco em escalabilidade, organização de código e facilidade de manutenção.
-
----
-
-## 🚀 Stack Tecnológica
-
-* Node.js
-* TypeScript
-* Hono
-* PostgreSQL
-* Prisma ORM
-* Docker
-* Zod (validação de dados)
-* Hono OpenAPI (documentação automática)
-* Scalar API Reference (documentação visual)
-* Ts-node-dev (ambiente de desenvolvimento)
+| Camada | Tecnologia |
+|--------|------------|
+| HTTP | Hono |
+| Linguagem | TypeScript |
+| Banco de dados | PostgreSQL + Prisma |
+| Validação | Zod + `@hono/zod-validator` |
+| Documentação | hono-openapi + zod-openapi + Scalar |
+| Infra local | Docker |
 
 ---
 
-## 🎯 Objetivos do Projeto
+## Instalação e setup local
 
-* Criar uma API robusta e organizada
-* Permitir gerenciamento de convidados
-* Permitir confirmação de presença (RSVP)
-* Permitir envio de mensagens para os noivos
-* Permitir gerenciamento de lista de presentes
-* Servir como backend oficial do site FAWedding
+### Pré-requisitos
 
----
+- Node.js
+- Docker e Docker Compose
 
-## 📂 Estrutura Inicial
+### 1. Clone o repositório
 
-```
-src/
-  modules/
-  shared/
-  config/
-  app.ts
-  server.ts
+```bash
+git clone https://github.com/seu-usuario/fawedding-api.git
+cd fawedding-api
 ```
 
----
+### 2. Configure as variáveis de ambiente
 
-## ⚙️ Scripts do Projeto
-
-* `dev` → roda o servidor em modo desenvolvimento
-* `build` → compila o projeto
-* `start` → roda versão compilada
-* `prisma:generate` → gera client do Prisma
-* `prisma:migrate` → cria migrations
-
----
-
-## 🗄️ Banco de Dados
-
-O projeto utiliza **PostgreSQL rodando via Docker**, garantindo facilidade de setup e portabilidade do ambiente de desenvolvimento.
-
----
-
-## ▶️ Como iniciar o projeto
-
+```bash
+cp .env.example .env
 ```
+
+Edite o `.env` com suas configurações (veja a seção [Variáveis de ambiente](#variáveis-de-ambiente)).
+
+### 3. Suba o banco de dados
+
+```bash
 docker compose up -d
+```
+
+### 4. Instale as dependências
+
+```bash
 npm install
-npx prisma init
-npm run prisma:migrate
+```
+
+### 5. Execute as migrations
+
+```bash
+npx prisma migrate dev
+```
+
+### 6. Crie o primeiro token de autenticação
+
+```bash
+npm run seed:token
+```
+
+> Guarde o token exibido no console — ele é necessário para autenticar as requisições. Não será exibido novamente.
+
+### 7. Inicie o servidor
+
+```bash
 npm run dev
 ```
 
+A API estará disponível em `http://localhost:3000/api`.
+A documentação interativa (Scalar) estará disponível em `http://localhost:3000/api/docs`.
+
 ---
 
-## ✅ Próximos Passos
+## Variáveis de ambiente
 
-* Criar módulo de convidados
-* Criar módulo de RSVP
-* Criar autenticação administrativa
-* Criar sistema de presentes
-* Implementar logs e tratamento global de erros
-* Criar testes automatizados
+| Variável | Descrição |
+|----------|-----------|
+| `DATABASE_URL` | URL de conexão com o PostgreSQL (ex: `postgresql://user:pass@localhost:5432/fawedding`) |
+
+---
+
+## Arquitetura
+
+```
+Cliente
+  └── src/index.ts         # Middlewares, onError, app.route
+        └── src/routes/    # Reexport dos controllers
+              └── src/controllers/   # Rotas Hono + OpenAPI
+                    └── src/services/        # Regras de negócio + Prisma
+                          └── src/schemas/   # Validação Zod
+                          └── src/models/    # Tipos e mappers
+```
+
+### Estrutura de pastas
+
+```
+src/
+├── index.ts              # Entry point: middlewares, docs, onError, rotas
+├── server.ts
+├── controllers/          # *.controller.ts — rotas Hono com describeRoute e validator
+├── services/             # *.service.ts — regras de negócio e acesso ao banco via Prisma
+├── schemas/              # *.schema.ts — contratos Zod + OpenAPI
+├── models/               # *.model.ts — tipos inferidos e mappers (toXResponse)
+├── routes/               # *.routes.ts — reexport dos controllers + barrel index.ts
+├── core/                 # Classes base (ex: AbstractService)
+├── lib/                  # Prisma client, OpenAPI, docs
+├── types/                # Tipos globais do Hono (AppEnv, ApplicationVariables)
+└── utils/                # Utilitários compartilhados
+```
+
+### Convenções
+
+- Respostas de sucesso: `{ "data": ... }`
+- Respostas de erro: `{ "errors": "..." }`
+- URLs em inglês, substantivos no plural: `/guests`, `/gifts`, `/messages`
+- JSON em camelCase
+- Lógica de negócio e Prisma exclusivamente nos services
+- Controllers finos: apenas validação, chamada ao service e retorno
+
+---
+
+## Autenticação
+
+A API utiliza Bearer token estático validado a cada requisição contra a tabela `api_tokens` no banco.
+
+```http
+Authorization: Bearer <token>
+```
+
+Rotas públicas (sem autenticação):
+- `GET /api/openapi`
+- `GET /api/docs`
+
+---
+
+## Endpoints
+
+### API Tokens — `/api/api-tokens`
+
+| Método | Rota | Descrição | Retorna token? |
+|--------|------|-----------|----------------|
+| `GET` | `/api/api-tokens` | Lista todos os tokens | Sim |
+| `POST` | `/api/api-tokens` | Cria um novo token | Sim |
+| `GET` | `/api/api-tokens/:id` | Busca token por ID | Não |
+| `PUT` | `/api/api-tokens/:id` | Atualiza token | Não |
+| `DELETE` | `/api/api-tokens/:id` | Remove token | Não |
+
+> O campo `token` só é retornado na criação (`POST`). Guarde-o imediatamente.
+
+**Exemplo — criar token:**
+
+```bash
+curl -X POST http://localhost:3000/api/api-tokens \
+  -H "Authorization: Bearer <token-existente>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "frontend"}'
+```
+
+---
+
+> A documentação completa e interativa de todos os endpoints está disponível em `/api/docs` (Scalar).
+
+---
+
+## Licença
+
+Projeto pessoal. Todos os direitos reservados.
