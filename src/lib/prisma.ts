@@ -1,4 +1,12 @@
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
+
+export function isDuplicateKeyError(err: unknown, field?: string): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false
+  if (err.code !== 'P2002') return false
+  if (field === undefined) return true
+  const target = err.meta?.target
+  return Array.isArray(target) && target.includes(field)
+}
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 

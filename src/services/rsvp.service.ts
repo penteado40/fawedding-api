@@ -1,7 +1,7 @@
-import { Prisma } from '@prisma/client'
 import { HTTPException } from 'hono/http-exception'
 import type { Context } from 'hono'
 import { AbstractService } from '../core/abstract-service'
+import { isDuplicateKeyError } from '../lib/prisma'
 import type { AppEnv } from '../types/hono-env'
 import type { CreateRsvpRequest, RsvpModelResponse, SearchRsvpRequest } from '../models/rsvp.model'
 import { toRsvpResponse } from '../models/rsvp.model'
@@ -26,7 +26,7 @@ export class RsvpService extends AbstractService {
       })
       return toRsvpResponse(rsvp)
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      if (isDuplicateKeyError(err, 'email')) {
         throw new HTTPException(409, { message: 'Email already registered' })
       }
       throw err

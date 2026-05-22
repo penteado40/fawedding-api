@@ -7,8 +7,10 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
-import { routes } from './routes'
 import { authMiddleware } from './middlewares/auth.middleware'
+import { giftController } from './controllers/gift.controller'
+import { rsvpController } from './controllers/rsvp.controller'
+import { apiTokenController } from './controllers/api-token.controller'
 import type { AppEnv } from './types/hono-env'
 
 fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true })
@@ -56,7 +58,9 @@ app.onError((err, c) => {
   return c.json({ errors: err instanceof Error ? err.message : 'Internal Server Error' })
 })
 
-app.route('/', routes)
+app.route('/gifts', giftController)
+app.route('/rsvps', rsvpController)
+app.route('/api-tokens', apiTokenController)
 
 
 export default app
