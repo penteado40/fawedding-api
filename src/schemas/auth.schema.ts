@@ -11,6 +11,11 @@ export const AuthRequestSchema = {
     email: z.string().email(),
     password: z.string().min(1),
   }),
+  TOKEN: z.object({
+    grant_type: z.literal('password'),
+    username: z.string().email(),
+    password: z.string().min(1),
+  }),
 }
 
 export const AuthResponseSchema = {
@@ -19,6 +24,11 @@ export const AuthResponseSchema = {
       token: z.string(),
       user: UserModelSchema,
     }),
+  }),
+  TOKEN: z.object({
+    access_token: z.string(),
+    token_type: z.literal('bearer'),
+    expires_in: z.number().int(),
   }),
 }
 

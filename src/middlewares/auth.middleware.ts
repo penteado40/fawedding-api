@@ -3,7 +3,7 @@ import { createMiddleware } from 'hono/factory'
 import { HTTPException } from 'hono/http-exception'
 import type { AppEnv } from '../types/hono-env'
 
-const PUBLIC_PATHS = new Set(['/api/openapi', '/api/docs', '/api/auth/login'])
+const PUBLIC_PATHS = new Set(['/api/openapi', '/api/docs', '/api/auth/login', '/api/auth/token'])
 
 export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   if (PUBLIC_PATHS.has(c.req.path)) {

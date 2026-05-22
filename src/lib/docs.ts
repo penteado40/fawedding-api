@@ -27,13 +27,18 @@ export function startDocs(app: Hono<AppEnv>) {
         ],
         components: {
           securitySchemes: {
-            bearerAuth: {
-              type: 'http',
-              scheme: 'bearer',
+            oauth2: {
+              type: 'oauth2',
+              flows: {
+                password: {
+                  tokenUrl: '/api/auth/token',
+                  scopes: {},
+                },
+              },
             },
           },
         },
-        security: [{ bearerAuth: [] }],
+        security: [{ oauth2: [] }],
       },
     }),
   )
