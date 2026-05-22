@@ -35,6 +35,17 @@ model Rsvp {
   @@map("rsvps")
 }
 
+model User {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  hashedPassword String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("users")
+}
+
 model ApiToken {
   id        Int      @id @default(autoincrement())
   name      String   @unique

@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
 import { authMiddleware } from './middlewares/auth.middleware'
+import { authController } from './controllers/auth.controller'
 import { giftController } from './controllers/gift.controller'
 import { rsvpController } from './controllers/rsvp.controller'
 import { apiTokenController } from './controllers/api-token.controller'
@@ -58,6 +59,7 @@ app.onError((err, c) => {
   return c.json({ errors: err instanceof Error ? err.message : 'Internal Server Error' })
 })
 
+app.route('/auth', authController)
 app.route('/gifts', giftController)
 app.route('/rsvps', rsvpController)
 app.route('/api-tokens', apiTokenController)
