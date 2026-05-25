@@ -10,7 +10,7 @@ export class RsvpService extends AbstractService {
   async list(search: SearchRsvpRequest = {}): Promise<RsvpModelResponse[]> {
     const rsvps = await this.prisma.rsvp.findMany({
       where: search.status ? { status: search.status } : {},
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
     })
     return rsvps.map(toRsvpResponse)
   }
