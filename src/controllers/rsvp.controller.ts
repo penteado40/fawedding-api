@@ -34,7 +34,7 @@ rsvpController.post(
   describeRoute({
     summary: 'Create RSVP',
     description:
-      'Registers a new RSVP with status PENDING. Email must be unique — returns 409 if already registered.',
+      'Registers a new RSVP with status CONFIRMED. Email must be unique — returns 409 if already registered.',
     tags: ['RSVPs'],
     responses: mapResponses({
       schema: RsvpResponseSchema.SINGLE,

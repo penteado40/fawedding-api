@@ -12,6 +12,7 @@
     "seed:user": "npx tsx prisma/seed-user.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1053.0",
     "@hono/node-server": "^1.19.11",
     "@hono/zod-validator": "^0.7.2",
     "@prisma/client": "^6.19.3",

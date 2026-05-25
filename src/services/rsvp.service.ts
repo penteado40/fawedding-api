@@ -2,6 +2,7 @@ import { HTTPException } from 'hono/http-exception'
 import type { Context } from 'hono'
 import { AbstractService } from '../core/abstract-service'
 import { isDuplicateKeyError } from '../lib/prisma'
+import { publishRsvpConfirmation } from '../lib/sqs'
 import type { AppEnv } from '../types/hono-env'
 import type { CreateRsvpRequest, RsvpModelResponse, SearchRsvpRequest } from '../models/rsvp.model'
 import { toRsvpResponse } from '../models/rsvp.model'
@@ -24,6 +25,7 @@ export class RsvpService extends AbstractService {
           phone: data.phone,
         },
       })
+      void publishRsvpConfirmation({ name: rsvp.name, email: rsvp.email })
       return toRsvpResponse(rsvp)
     } catch (err) {
       if (isDuplicateKeyError(err, 'email')) {
