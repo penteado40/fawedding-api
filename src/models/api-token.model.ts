@@ -16,6 +16,7 @@ export type SearchApiTokenRequest = z.infer<typeof ApiTokenRequestSchema.SEARCH>
 export function toApiTokenResponse(row: ApiTokenRow): ApiTokenModel {
   return {
     id: row.id,
+    weddingId: row.weddingId,
     name: row.name,
     token: row.token,
     isActive: row.isActive,
@@ -27,6 +28,7 @@ export function toApiTokenResponse(row: ApiTokenRow): ApiTokenModel {
 export function toApiTokenMeta(row: ApiTokenRow): ApiTokenMeta {
   return {
     id: row.id,
+    weddingId: row.weddingId,
     name: row.name,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),

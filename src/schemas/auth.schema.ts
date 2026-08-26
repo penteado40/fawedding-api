@@ -4,6 +4,7 @@ const UserModelSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   email: z.string().email(),
+  role: z.enum(['SUPER_ADMIN', 'USER']),
 })
 
 export const AuthRequestSchema = {

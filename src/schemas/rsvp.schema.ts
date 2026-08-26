@@ -4,6 +4,7 @@ export const RsvpStatusSchema = z.enum(['PENDING', 'CONFIRMED', 'DECLINED'])
 
 export const RsvpModelSchema = z.object({
   id: z.number().int(),
+  weddingId: z.number().int(),
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),

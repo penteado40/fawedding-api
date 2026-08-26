@@ -8,18 +8,19 @@ import type { CreateRsvpRequest, RsvpModelResponse, SearchRsvpRequest } from '..
 import { toRsvpResponse } from '../models/rsvp.model'
 
 export class RsvpService extends AbstractService {
-  async list(search: SearchRsvpRequest = {}): Promise<RsvpModelResponse[]> {
+  async list(weddingId: number, search: SearchRsvpRequest = {}): Promise<RsvpModelResponse[]> {
     const rsvps = await this.prisma.rsvp.findMany({
-      where: search.status ? { status: search.status } : {},
+      where: { weddingId, ...(search.status ? { status: search.status } : {}) },
       orderBy: { name: 'asc' },
     })
     return rsvps.map(toRsvpResponse)
   }
 
-  async create(data: CreateRsvpRequest): Promise<RsvpModelResponse> {
+  async create(weddingId: number, data: CreateRsvpRequest): Promise<RsvpModelResponse> {
     try {
       const rsvp = await this.prisma.rsvp.create({
         data: {
+          weddingId,
           name: data.name,
           email: data.email,
           phone: data.phone,

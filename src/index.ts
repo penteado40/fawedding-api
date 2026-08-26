@@ -7,10 +7,11 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
+import { formatZodError } from './lib/validation'
 import { authMiddleware } from './middlewares/auth.middleware'
 import { authController } from './controllers/auth.controller'
 import { giftController } from './controllers/gift.controller'
-import { rsvpController } from './controllers/rsvp.controller'
+import { weddingController } from './controllers/wedding.controller'
 import { apiTokenController } from './controllers/api-token.controller'
 import type { AppEnv } from './types/hono-env'
 
@@ -52,7 +53,7 @@ app.onError((err, c) => {
   }
   if (err instanceof z.ZodError) {
     c.status(400)
-    return c.json({ errors: err.message })
+    return c.json({ errors: formatZodError(err) })
   }
   console.error(err)
   c.status(500)
@@ -61,7 +62,7 @@ app.onError((err, c) => {
 
 app.route('/auth', authController)
 app.route('/gifts', giftController)
-app.route('/rsvps', rsvpController)
+app.route('/weddings', weddingController)
 app.route('/api-tokens', apiTokenController)
 
 
