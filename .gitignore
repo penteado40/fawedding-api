@@ -4,6 +4,3 @@
 /.cursor
 /.claude
 /.agents
-/lambda/node_modules
-/infra/node_modules
-/cdk.out

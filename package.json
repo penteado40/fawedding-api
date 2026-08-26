@@ -12,21 +12,27 @@
     "seed:user": "npx tsx prisma/seed-user.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.1053.0",
     "@hono/node-server": "^1.19.11",
     "@hono/zod-validator": "^0.7.2",
     "@prisma/client": "^6.19.3",
     "@prisma/extension-accelerate": "^1.2.2",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "@scalar/hono-api-reference": "^0.9.13",
     "bcryptjs": "^3.0.3",
     "hono": "^4.7.1",
     "hono-openapi": "^0.4.8",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "resend": "^6.24.0",
     "zod": "^4.0.17",
     "zod-openapi": "^5.3.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "prisma": "^6.19.3",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.0"

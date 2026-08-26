@@ -29,10 +29,17 @@ enum UserRole {
   USER
 }
 
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Wedding {
   id        Int             @id @default(autoincrement())
   name      String
   slug      String          @unique
+  siteUrl   String
   date      DateTime
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
@@ -56,15 +63,18 @@ model WeddingManager {
 }
 
 model Rsvp {
-  id        Int        @id @default(autoincrement())
-  weddingId Int
-  name      String
-  email     String
-  phone     String
-  status    RsvpStatus @default(CONFIRMED)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  wedding   Wedding    @relation(fields: [weddingId], references: [id])
+  id           Int         @id @default(autoincrement())
+  weddingId    Int
+  name         String
+  email        String
+  phone        String
+  status       RsvpStatus  @default(CONFIRMED)
+  emailStatus  EmailStatus @default(PENDING)
+  emailSentAt  DateTime?
+  emailError   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  wedding      Wedding     @relation(fields: [weddingId], references: [id])
 
   @@unique([weddingId, email])
   @@map("rsvps")

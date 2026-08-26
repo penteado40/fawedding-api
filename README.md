@@ -1,22 +1,21 @@
 # fawedding-api
 
-> REST API powering the [F&A Wedding](https://fawedding.com.br) ecosystem — guests, RSVPs, gift list, and messages, with a serverless email confirmation pipeline built on AWS SQS, Lambda, and SES.
+> REST API powering the [F&A Wedding](https://fawedding.com.br) ecosystem — guests, RSVPs, gift list, and messages, with a direct email confirmation flow built on Resend and React Email.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Hono](https://img.shields.io/badge/Hono-E36002?style=flat&logo=hono&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)
-![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-FF9900?style=flat&logo=awslambda&logoColor=white)
-![AWS CDK](https://img.shields.io/badge/AWS_CDK-232F3E?style=flat&logo=amazonaws&logoColor=white)
+![Resend](https://img.shields.io/badge/Resend-000000?style=flat&logo=resend&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 
 ---
 
 ## Overview
 
-fawedding-api is the backend for a real, production wedding website. It handles guest data, RSVP submissions, gift list, and messages to the couple — and, most importantly, drives an asynchronous email confirmation pipeline via AWS SQS, Lambda, and SES.
+fawedding-api is the backend for a real, production wedding website. It handles guest data, RSVP submissions, gift list, and messages to the couple — and, most importantly, sends a personalized confirmation email the moment a guest RSVPs.
 
-When a guest submits their RSVP, the API persists the record and enqueues a message to SQS. A Lambda function picks it up asynchronously and sends a personalized confirmation email through SES. The entire AWS infrastructure is defined and deployed with **AWS CDK in TypeScript** — same language as the rest of the stack.
+When a guest submits their RSVP, the API persists the record and immediately sends a confirmation email via **Resend**, rendering the wedding-specific **React Email** template in the same request (fire-and-forget — a failed send never blocks or fails the guest's response). The platform is multi-tenant: each `Wedding` can have its own frontend, domain, and email template. Delivery outcome is tracked on the RSVP itself (`emailStatus`, `emailSentAt`, `emailError`), and a manager can trigger a manual resend if a send failed — there's no queue and no automatic retry, by design, given the project's volume (dozens to a few hundred RSVPs per wedding).
 
 This is part of the **FAWedding ecosystem**:
 
@@ -41,17 +40,10 @@ This is part of the **FAWedding ecosystem**:
                                             │
                               validate (Zod) + persist (Prisma)
                                             │
-                                   enqueue to SQS
+                          fire-and-forget: render template + send
                                             │
                                             ▼
-┌──────────────────────────────────────────────────────────┐
-│  AWS (CDK-managed)                                       │
-│                                                          │
-│  SQS Queue  ──triggers──►  Lambda                        │
-│                                │                         │
-│                                ▼                         │
-│                               SES  ──►  guest email      │
-└──────────────────────────────────────────────────────────┘
+                            Resend  ──►  guest email
 ```
 
 ### Request lifecycle
@@ -63,7 +55,7 @@ HTTP Request
   └─ auth middleware           Validates Bearer token against api_tokens table
   └─ validator                 Validates body/params with Zod + OpenAPI schema
   └─ controller                Calls service, returns { data }
-  └─ service                   Business logic + Prisma + SQS enqueue
+  └─ service                   Business logic + Prisma + confirmation email send
   └─ model mapper              Shapes response, strips sensitive fields
   └─ onError (global)          Handles HTTPException | ZodError | Error
 ```
@@ -75,12 +67,13 @@ src/
 ├── index.ts              # Bootstrap: middlewares, docs, onError, route mounting
 ├── server.ts             # Server initialization
 ├── controllers/          # HTTP handlers — Hono routes with describeRoute + validator
-├── services/             # Business logic — Prisma access + SQS integration
+├── services/             # Business logic — Prisma access + confirmation email send
 ├── schemas/              # Zod schemas with OpenAPI annotations
 ├── models/               # TypeScript types + response mappers (toXResponse)
 ├── routes/               # Per-module route files + barrel index.ts
 ├── core/                 # Base classes (AbstractService)
-├── lib/                  # Prisma client, OpenAPI config, Scalar docs setup
+├── emails/                # React Email templates, one per wedding + generic fallback
+├── lib/                  # Prisma client, OpenAPI config, Scalar docs setup, Resend client
 ├── types/                # Global Hono types (AppEnv, ApplicationVariables)
 └── utils/                # Shared utilities
 ```
@@ -89,14 +82,11 @@ src/
 
 ## Key Technical Decisions
 
-### SQS between API and email delivery
-The API returns `201` to the guest as soon as the RSVP is saved — it never waits for the email. SQS acts as a durable buffer: if Lambda fails or SES is throttled, the message stays in the queue and retries automatically. This keeps the guest-facing response fast and reliable regardless of downstream email delivery.
+### Direct email send, no queue
+The API returns `201` to the guest as soon as the RSVP is saved — it never waits for the email (send is fire-and-forget). An earlier version of this project ran the send through SQS + Lambda + SES for the sake of demonstrating an async AWS pipeline; that infrastructure was built, evaluated, and then torn down as unnecessary complexity for the actual volume (dozens to a few hundred RSVPs per wedding). There's no automatic retry: a failed send is recorded on the RSVP (`emailStatus = FAILED`, `emailError`) and reprocessed only via an explicit manual resend (`POST /rsvps/:id/resend-email`) — always a deliberate action by whoever manages the wedding, never silent.
 
-### Lambda for email processing
-Email composition and delivery are isolated to a Lambda function — completely separate from the API. This means the email logic can change, be redeployed, or be replaced without touching the API. It also scales independently and costs nothing when idle.
-
-### CDK for infrastructure
-All AWS resources (SQS queue, Lambda function, SES configuration, IAM roles and policies) are defined in TypeScript with AWS CDK. Infrastructure is version-controlled alongside the application code, reproducible from scratch in any AWS account, and can be torn down completely with a single command.
+### Template per wedding
+The platform is multi-tenant, and each wedding can have its own frontend and visual identity. The confirmation email template mirrors that: a small in-code registry maps `weddingId` → React Email component, with a generic fallback for weddings without a dedicated one. Resend accepts a React component directly (`resend.emails.send({ react: <Component /> })`), so there's no manual HTML-rendering step in the send path. The sender address is derived from `Wedding.siteUrl`'s hostname (`noreply@<hostname>`) — each domain needs to be verified in Resend before it can send for real, a manual step done once per wedding.
 
 ### Static bearer token auth
 The site serves a known, invite-only guest list — there are no public user accounts. A static bearer token validated against the `api_tokens` table in the database provides sufficient security without the overhead of session management or OAuth. Token creation is one-way: the raw value is shown once on `POST /api-tokens` and never again. Each token is scoped to a single wedding and can only be used to create RSVPs for that wedding.
@@ -147,7 +137,14 @@ Tenant entity. Every RSVP and API token belongs to exactly one wedding.
 
 ### RSVPs — `/api/weddings/:weddingId/rsvps`
 
-Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP and enqueues the SQS message that triggers the confirmation email via Lambda + SES. Email uniqueness is scoped per wedding — the same guest email can RSVP to different weddings. Reachable by a JWT-authenticated manager/`SUPER_ADMIN` (`GET`/`POST`), or by an `ApiToken` scoped to that wedding (`POST` only).
+Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP and sends the confirmation email via Resend in the same request, fire-and-forget. Email uniqueness is scoped per wedding — the same guest email can RSVP to different weddings. Reachable by a JWT-authenticated manager/`SUPER_ADMIN` (`GET`/`POST`), or by an `ApiToken` scoped to that wedding (`POST` only).
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/weddings/:weddingId/rsvps` | List RSVPs for the wedding |
+| `POST` | `/weddings/:weddingId/rsvps` | Create an RSVP, triggers confirmation email |
+| `POST` | `/weddings/:weddingId/rsvps/:id/resend-email` | Manually resend the confirmation email |
+| `GET` | `/weddings/:weddingId/rsvps/email-preview` | Render the wedding's email template with mocked data, in-browser |
 
 ### Gifts — `/api/gifts`
 
@@ -225,6 +222,8 @@ Docs: `http://localhost:3000/api/docs`
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string (e.g. `postgresql://user:pass@localhost:5432/fawedding`) |
+| `JWT_SECRET` | Secret used to sign/verify manager login JWTs |
+| `RESEND_API_KEY` | API key used to send confirmation emails via Resend. Without it, sends fail gracefully (`emailStatus = FAILED`) — the RSVP itself still succeeds |
 
 ---
 
