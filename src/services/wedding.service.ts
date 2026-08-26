@@ -30,7 +30,7 @@ export class WeddingService extends AbstractService {
   async create(data: CreateWeddingRequest): Promise<WeddingModel> {
     try {
       const wedding = await this.prisma.wedding.create({
-        data: { name: data.name, slug: data.slug, date: data.date },
+        data: { name: data.name, slug: data.slug, siteUrl: data.siteUrl, date: data.date },
         include: WITH_MANAGERS,
       })
       return toWeddingResponse(wedding)

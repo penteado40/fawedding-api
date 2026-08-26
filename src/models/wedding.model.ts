@@ -21,6 +21,7 @@ export function toWeddingResponse(row: WeddingRowWithManagers): WeddingModel {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    siteUrl: row.siteUrl,
     date: row.date.toISOString(),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

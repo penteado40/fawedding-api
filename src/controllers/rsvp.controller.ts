@@ -65,3 +65,49 @@ rsvpController.post(
     return c.json({ data }, 201)
   },
 )
+
+rsvpController.post(
+  '/:id/resend-email',
+  describeRoute({
+    summary: 'Resend RSVP confirmation email',
+    description:
+      'Resends the confirmation email for an RSVP, regardless of its current emailStatus. No automatic retry exists — this is the only way to reprocess a failed send.',
+    tags: ['RSVPs'],
+    responses: mapResponses({
+      schema: RsvpResponseSchema.SINGLE,
+      successMessage: 'Confirmation email resent',
+    }),
+  }),
+  validator('param', RsvpRequestSchema.ID_PARAM, zodErrorHook),
+  async (c) => {
+    const { weddingId, id } = c.req.valid('param')
+    const actor = c.get('actor')
+    const accessService = createWeddingAccessService(c)
+    accessService.assertCanAccessWedding(actor, weddingId)
+
+    const service = createRsvpService(c)
+    const data = await service.resendEmail(weddingId, id)
+    return c.json({ data })
+  },
+)
+
+rsvpController.get(
+  '/email-preview',
+  describeRoute({
+    summary: 'Preview confirmation email',
+    description:
+      'Renders the confirmation email template for this wedding with mocked guest data, for visual review in the browser. Does not send an email or require an existing RSVP.',
+    tags: ['RSVPs'],
+  }),
+  validator('param', WeddingIdParamSchema, zodErrorHook),
+  async (c) => {
+    const { weddingId } = c.req.valid('param')
+    const actor = c.get('actor')
+    const accessService = createWeddingAccessService(c)
+    accessService.assertCanAccessWedding(actor, weddingId)
+
+    const service = createRsvpService(c)
+    const html = await service.previewEmail(weddingId)
+    return c.html(html)
+  },
+)

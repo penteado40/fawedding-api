@@ -13,6 +13,7 @@ export const WeddingModelSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   slug: z.string(),
+  siteUrl: z.string(),
   date: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -31,6 +32,7 @@ export const WeddingRequestSchema = {
       .min(1)
       .max(200)
       .regex(/^[a-z0-9-]+$/, 'slug must be lowercase alphanumeric with dashes'),
+    siteUrl: z.string().url(),
     date: BrDateSchema,
   }),
   PARAM: z.object({

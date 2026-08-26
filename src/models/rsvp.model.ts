@@ -14,6 +14,9 @@ export function toRsvpResponse(rsvp: RsvpRow): RsvpModelResponse {
     email: rsvp.email,
     phone: rsvp.phone,
     status: rsvp.status,
+    emailStatus: rsvp.emailStatus,
+    emailSentAt: rsvp.emailSentAt ? rsvp.emailSentAt.toISOString() : null,
+    emailError: rsvp.emailError,
     createdAt: rsvp.createdAt.toISOString(),
     updatedAt: rsvp.updatedAt.toISOString(),
   }

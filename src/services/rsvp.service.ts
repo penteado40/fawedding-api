@@ -1,8 +1,9 @@
 import { HTTPException } from 'hono/http-exception'
 import type { Context } from 'hono'
+import type { Rsvp, Wedding } from '@prisma/client'
 import { AbstractService } from '../core/abstract-service'
 import { isDuplicateKeyError } from '../lib/prisma'
-import { publishRsvpConfirmation } from '../lib/sqs'
+import { sendConfirmationEmail, renderConfirmationEmailPreview } from '../lib/email'
 import type { AppEnv } from '../types/hono-env'
 import type { CreateRsvpRequest, RsvpModelResponse, SearchRsvpRequest } from '../models/rsvp.model'
 import { toRsvpResponse } from '../models/rsvp.model'
@@ -25,8 +26,9 @@ export class RsvpService extends AbstractService {
           email: data.email,
           phone: data.phone,
         },
+        include: { wedding: true },
       })
-      void publishRsvpConfirmation({ name: rsvp.name, email: rsvp.email })
+      void this.sendAndTrackConfirmationEmail(rsvp, rsvp.wedding)
       return toRsvpResponse(rsvp)
     } catch (err) {
       if (isDuplicateKeyError(err, 'email')) {
@@ -34,6 +36,36 @@ export class RsvpService extends AbstractService {
       }
       throw err
     }
+  }
+
+  async resendEmail(weddingId: number, rsvpId: number): Promise<RsvpModelResponse> {
+    const rsvp = await this.prisma.rsvp.findFirst({
+      where: { id: rsvpId, weddingId },
+      include: { wedding: true },
+    })
+    if (!rsvp) {
+      throw new HTTPException(404, { message: 'RSVP not found' })
+    }
+    const updated = await this.sendAndTrackConfirmationEmail(rsvp, rsvp.wedding)
+    return toRsvpResponse(updated)
+  }
+
+  async previewEmail(weddingId: number): Promise<string> {
+    const wedding = await this.prisma.wedding.findUnique({ where: { id: weddingId } })
+    if (!wedding) {
+      throw new HTTPException(404, { message: 'Wedding not found' })
+    }
+    return renderConfirmationEmailPreview('Convidado de Teste', wedding)
+  }
+
+  private async sendAndTrackConfirmationEmail(rsvp: Rsvp, wedding: Wedding): Promise<Rsvp> {
+    const result = await sendConfirmationEmail(rsvp, wedding)
+    return this.prisma.rsvp.update({
+      where: { id: rsvp.id },
+      data: result.ok
+        ? { emailStatus: 'SENT', emailSentAt: new Date(), emailError: null }
+        : { emailStatus: 'FAILED', emailError: result.error },
+    })
   }
 }
 

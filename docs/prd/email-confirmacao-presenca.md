@@ -1,195 +1,112 @@
 # FAWedding — Email de Confirmação de Presença
 
-Epic: **PROJ-39 — FAWedding**
-Projeto: **PROJ (Projects)**
-
 ---
 
 ## Contexto e decisões de arquitetura
 
-- Stack de email usa **SQS + Lambda + SES intencionalmente para portfólio/aprendizado** — não por necessidade técnica (volume esperado: ~200 RSVPs).
-- Toda a infra nova vive neste repo: `infra/` (CDK) e `lambda/` (handler + template).
-- RSVP criado = status **CONFIRMED** imediato. O email é um **recibo de confirmação**, não double opt-in.
-- Região AWS: **us-east-1**. Custo estimado: **R$ 0** (dentro do free tier da AWS).
-- Remetente: `noreply@fawedding.com.br` (domínio `fawedding.com.br` gerenciado no Cloudflare).
-- Template React Email já existe no frontend repo com prop `{ name: string }` — será duplicado em `lambda/src/email/confirmation.tsx` (duplicação aceita explicitamente).
-- Payload SQS: `{ name: string, email: string }` — `phone` não é necessário para o template.
+> **Nota:** a primeira versão desta PRD especificava uma stack SQS + Lambda + SES. Essa stack chegou a ser implementada e deployada, e depois **desfeita** (infra AWS real destruída via `cdk destroy`) por ser complexidade desnecessária para o volume do projeto — a decisão foi simplificar para envio direto, sem fila. Este documento substitui a versão anterior.
+
+- Envio de email **direto no processo da API**, sem fila, sem Lambda, sem AWS. Provedor: **Resend**.
+- A plataforma é multi-tenant (ver PRD de multi-tenancy): cada `Wedding` pode ter frontend e domínio próprios. O template do email e o remetente precisam refletir isso.
+- RSVP criado = status `CONFIRMED` imediato (já é o comportamento atual). O email é um **recibo de confirmação**, não um passo de double opt-in.
+- Volume esperado: dezenas a poucas centenas de RSVPs por casamento. Sem necessidade de infra assíncrona dedicada.
+- Custo: R$ 0 (free tier do Resend cobre o volume esperado).
 
 ### Estrutura de pastas
 
 ```
 fawedding-api/
-  src/                          # API Hono (existente)
-  prisma/                       # existente
-  infra/                        # CDK stack (SQS, SES, Lambda, IAM, DLQ)
-  lambda/
-    src/
-      handler.ts                # entry point do Lambda
-      email/
-        confirmation.tsx        # template React Email (copiado do frontend)
+  src/
+    services/
+      rsvp.service.ts          # dispara envio após criar o RSVP (fire-and-forget)
+    lib/
+      email.ts                 # sendConfirmationEmail(...) via Resend
+    emails/
+      registry.ts              # weddingId -> componente React Email (+ fallback)
+      templates/
+        felipe-amanda.tsx      # template existente, copiado do frontend
+  prisma/
+    schema.prisma              # + Wedding.siteUrl, + Rsvp.emailStatus/emailSentAt/emailError
 ```
 
+As pastas `infra/` e `lambda/` (CDK + handler Lambda) são removidas. A dependência `@aws-sdk/client-sqs` e o arquivo `src/lib/sqs.ts` são removidos.
+
 ---
 
-## PROJ-41 — Configurar infraestrutura AWS (SQS + SES + Lambda) via CDK
-
-**Tipo:** História | **HITL**
-**Bloqueado por:** nenhum
+## Enviar email de confirmação ao criar RSVP
 
 ### What to build
 
-Provisionar via AWS CDK (TypeScript) em `infra/` os recursos AWS necessários:
+No `RsvpService.create`, após `prisma.rsvp.create` bem-sucedido, disparar o envio do email como fire-and-forget (`void sendConfirmationEmail(...)`). Falha no envio nunca lança exceção para o caller — o RSVP já foi salvo, e essa é a garantia que importa para o convidado.
 
-- Fila SQS principal para receber eventos de confirmação
-- **Dead Letter Queue (DLQ)** com `maxReceiveCount: 3` — após 3 falhas, mensagem vai para a DLQ
-- Configuração do domínio `fawedding.com.br` no AWS SES (`CfnEmailIdentity`) — gera registros TXT + 3 CNAMEs DKIM para adicionar manualmente no Cloudflare
-- Função Lambda com trigger nativo na fila SQS
-- IAM roles com menor privilégio (Lambda → SES, SQS → Lambda)
-- Output do CDK com ARN/URL da fila SQS para uso na API
+`sendConfirmationEmail`:
+1. Busca o componente de email correto no registro (`emails/registry.ts`), usando `weddingId`. Se não houver componente dedicado, usa um template genérico de fallback.
+2. Deriva o remetente a partir de `Wedding.siteUrl`: `From: noreply@<hostname de siteUrl>`.
+3. Chama `resend.emails.send({ from, to: rsvp.email, react: <Componente nome={rsvp.name} /> })` — o SDK do Resend renderiza o componente React diretamente, sem precisar de uma etapa manual de `render()` para HTML.
+4. Atualiza o RSVP: sucesso → `emailStatus = SENT`, `emailSentAt = now()`; falha → `emailStatus = FAILED`, `emailError = <mensagem>`.
 
-**SES Sandbox:** por padrão a conta AWS começa em sandbox. Para testes, verificar emails individuais via CLI:
+### Schema (Prisma)
 
-```bash
-aws ses verify-email-identity --email-address email@exemplo.com --region us-east-1
-```
+- `Wedding`: novo campo `siteUrl` (String) — URL pública do site daquele casamento. Usado tanto para o link do CTA no email quanto para derivar o domínio do remetente.
+- `Rsvp`: novos campos `emailStatus` (enum `PENDING` | `SENT` | `FAILED`, default `PENDING`), `emailSentAt` (DateTime, nullable), `emailError` (String, nullable).
 
-Para o evento real, solicitar saída do sandbox via AWS Support (formulário + 24–72h de aprovação).
+### Template por casamento
+
+Cada `Wedding` pode ter um componente React Email dedicado (cópia do template mantido no respectivo frontend — frontend é a fonte da verdade visual, duplicação aceita, sem sincronização automática). Um template genérico serve de fallback para casamentos sem componente próprio ainda.
+
+Na prática, todo o markup (fontes, seção de hero, cards de data/horário/local, CTA, footer) vive num único componente compartilhado, `ConfirmationEmailLayout` (em `emails/templates/generic.tsx`). O template de cada casamento é só esse layout configurado com paleta de cores, foto de hero e textos — normalmente algumas dezenas de linhas. `GenericConfirmationEmail` (o fallback do registry) é o mesmo layout com paleta neutra e sem foto/local, já que o `Wedding` não guarda esses dados. Um casamento novo nunca duplica HTML/CSS — só adiciona um arquivo de configuração e registra em `emails/registry.ts`.
+
+### Remetente e domínio
+
+Cada domínio de casamento (extraído de `siteUrl`) precisa estar verificado no Resend (registros DNS TXT + CNAMEs DKIM adicionados manualmente no Cloudflare daquele domínio). Passo manual, por casamento, fora do escopo automatizável.
 
 ### Acceptance criteria
 
-- [ ] CDK stack provisiona SQS, DLQ e Lambda sem erros
-- [ ] DLQ configurada com `maxReceiveCount: 3`
-- [ ] Domínio `fawedding.com.br` com identidade criada no SES
-- [ ] Registros DNS (TXT + 3 CNAMEs DKIM) adicionados no Cloudflare e domínio verificado
-- [ ] Lambda triggerada ao receber mensagem na fila SQS
-- [ ] IAM roles seguem princípio do menor privilégio
-- [ ] URL da fila SQS disponível como output do CDK
-- [ ] Emails de teste verificados via CLI para uso no sandbox
+- [ ] Após salvar RSVP no banco, o email de confirmação é enviado via Resend
+- [ ] Componente de email correto é escolhido a partir do `weddingId`; fallback genérico é usado quando não há componente dedicado
+- [ ] Remetente é `noreply@<hostname de Wedding.siteUrl>`
+- [ ] Falha no envio é logada e gravada em `emailError`, mas nunca impede a criação do RSVP nem falha o response HTTP
+- [ ] `emailStatus` e `emailSentAt` são atualizados corretamente após a tentativa de envio
+- [ ] Migration adiciona `Wedding.siteUrl` e os três novos campos em `Rsvp`
 
 ---
 
-## PROJ-42 — Criar template de email de confirmação de presença com React Email
-
-**Tipo:** História | **AFK**
-**Bloqueado por:** nenhum
+## Reenvio manual e preview
 
 ### What to build
 
-Copiar o componente React Email existente no repositório do frontend para `lambda/src/email/confirmation.tsx`. O componente já usa `@react-email/components` e já tem prop `{ name: string }`. Ajustar tipagem e exportar função `renderEmailHtml`.
+**Reenvio manual** — nova rota `POST /weddings/:weddingId/rsvps/:id/resend-email`. Chama a mesma função `sendConfirmationEmail`, permitindo reenviar tanto RSVPs com `emailStatus = FAILED` quanto qualquer outro RSVP, sob demanda. Mesmo controle de acesso das demais rotas de wedding (`assertCanAccessWedding`). Sem retry automático — reprocessamento é sempre uma ação explícita de quem gerencia o casamento.
 
-> Nota: duplicação aceita — o frontend é a fonte da verdade visual; `lambda/` mantém cópia para uso no handler.
-
-### Acceptance criteria
-
-- [ ] Componente em `lambda/src/email/confirmation.tsx` com prop `{ name: string }` tipada
-- [ ] Função `renderEmailHtml(data: { name: string }): string` exportada
-- [ ] Template renderiza corretamente em Gmail e Outlook
-
----
-
-## PROJ-43 — Publicar mensagem no SQS ao salvar confirmação de presença na API
-
-**Tipo:** História | **AFK**
-**Bloqueado por:** PROJ-41
-
-### What to build
-
-No `RsvpService.create` (após `prisma.rsvp.create` com sucesso), publicar mensagem na fila SQS com payload `{ name, email }`. Implementar como fire-and-forget — falha no SQS não bloqueia o response do convidado.
-
-O schema do payload deve ser validado com Zod.
-
-### Payload
-
-```ts
-{ name: string, email: string }
-```
+**Preview de email** — nova rota dev-only `GET /weddings/:weddingId/rsvps/email-preview`, renderiza o componente do casamento correspondente com dados mockados, direto no browser. Substitui a rota `/email-preview` que estava planejada na Landing Page — faz mais sentido centralizada aqui agora que existe mais de um template (um por casamento).
 
 ### Acceptance criteria
 
-- [ ] Após salvar RSVP no banco, mensagem é publicada no SQS
-- [ ] Payload contém `name` e `email` do convidado
-- [ ] `SQS_QUEUE_URL` configurado como variável de ambiente no Render
-- [ ] Falha no SQS é logada mas não bloqueia o convidado (fire-and-forget)
-- [ ] Payload validado com Zod antes do envio
-- [ ] `rsvp.controller.ts`: description corrigido de "status PENDING" para "status CONFIRMED"
+- [ ] `POST /weddings/:weddingId/rsvps/:id/resend-email` reenvia o email e atualiza `emailStatus`/`emailSentAt`/`emailError`
+- [ ] Rota de resend segue o mesmo controle de acesso das demais rotas de wedding
+- [ ] `GET /weddings/:weddingId/rsvps/email-preview` renderiza o template correto daquele casamento com dados mockados
+- [ ] Rota de preview não requer um RSVP real nem envia email de verdade
 
 ---
 
-## PROJ-44 — Implementar Lambda handler que consome SQS e envia email via SES
+## Testing Decisions
 
-**Tipo:** História | **AFK**
-**Bloqueado por:** PROJ-41, PROJ-42
+Um bom teste verifica comportamento externo e contratos — não detalhes de implementação internos.
 
-### What to build
+**Registro de templates:** testar que, dado um `weddingId` com componente registrado, o componente certo é escolhido; e que um `weddingId` sem componente cai no fallback.
 
-Implementar `lambda/src/handler.ts` que:
+**Envio de email:** mockar o cliente Resend — testar que, dado um RSVP criado com sucesso, o envio é chamado com remetente e destinatário corretos. Testar que falha no envio não lança exceção para o caller e resulta em `emailStatus = FAILED` + `emailError` preenchido.
 
-1. Recebe evento SQS com records `{ name, email }`
-2. Faz parse e valida o payload com Zod
-3. Renderiza o HTML via `renderEmailHtml({ name })`
-4. Envia via SES com `from: noreply@fawedding.com.br`
-5. Processa cada record independentemente — falha num record não trava os demais
-
-### Acceptance criteria
-
-- [ ] Handler processa evento SQS com `{ name, email }` corretamente
-- [ ] Email enviado via SES com `from: noreply@fawedding.com.br`
-- [ ] Subject e corpo do email corretos
-- [ ] Erros por record são logados sem travar o processamento dos demais
-- [ ] Variáveis de ambiente validadas na inicialização do handler
-- [ ] Mensagens com falha após 3 tentativas chegam na DLQ
+**Reenvio manual:** testar que a rota de resend chama o envio novamente e atualiza o status corretamente.
 
 ---
 
-## PROJ-45 — Adicionar rota de preview do email na Landing Page
+## Out of Scope
 
-**Tipo:** História | **AFK**
-**Bloqueado por:** PROJ-42
-
-### What to build
-
-Adicionar rota `/email-preview` no projeto Vite React da Landing Page que renderiza o componente React Email com dados mockados. Rota não aparece na navegação principal.
-
-### Acceptance criteria
-
-- [ ] Rota `/email-preview` acessível na LP renderiza o template com dados mockados
-- [ ] Layout fiel ao email que o convidado recebe
-- [ ] Rota não aparece na navegação principal
-
----
-
-## PROJ-46 — Validar fluxo end-to-end
-
-**Tipo:** História | **HITL**
-**Bloqueado por:** PROJ-43, PROJ-44, PROJ-45
-
-### What to build
-
-Validar o fluxo completo em ambiente real: formulário na LP → API salva e publica no SQS → Lambda triggerada → email de confirmação recebido.
-
-### Acceptance criteria
-
-- [ ] Formulário submetido resulta em email recebido pelo convidado
-- [ ] Email chega com remetente `noreply@fawedding.com.br`
-- [ ] Email não cai em spam (DKIM configurado)
-- [ ] Latência entre submit e recebimento do email < 30s
-- [ ] Logs do Lambda visíveis no CloudWatch
-- [ ] Mensagens com falha visíveis na DLQ
-
----
-
-## Diagrama de dependências
-
-```
-PROJ-41 (Infra AWS CDK)     PROJ-42 (React Email template)
-        │                           │
-        ├──────────┐       ┌────────┤
-        │          ▼       ▼        │
-        │     PROJ-44           PROJ-45
-  PROJ-43   (Lambda handler)  (Preview LP)
-        │          │               │
-        └────────┬─┘               │
-                 ▼                 │
-             PROJ-46 ◄─────────────┘
-          (E2E validation)
-```
+- Envio de email em outros eventos além da criação de RSVP (ex.: atualização de status, cancelamento)
+- Email para o casal notificando novo RSVP
+- Template de email para lista de presentes
+- Painel de monitoramento de emails enviados
+- Retry automático de envio (reenvio é sempre manual, via rota dedicada)
+- Verificação de domínio no Resend por casamento (recomendada mas manual, fora do escopo automatizável)
+- Internacionalização do template
+- Fila/processamento assíncrono de qualquer tipo (decisão explícita de simplificação em relação à versão anterior desta PRD)

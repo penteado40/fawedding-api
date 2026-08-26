@@ -1,8 +1,0 @@
-{
-  "app": "node infra/node_modules/.bin/ts-node -P infra/tsconfig.json --prefer-ts-exts infra/bin/app.ts",
-  "context": {
-    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
-    "@aws-cdk/core:checkSecretUsage": true,
-    "aws-cdk-lib:enablePartitionLiterals": true
-  }
-}
