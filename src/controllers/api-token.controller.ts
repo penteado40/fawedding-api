@@ -2,9 +2,11 @@ import { Hono } from 'hono'
 import { describeRoute } from 'hono-openapi'
 import { validator } from 'hono-openapi/zod'
 import { mapResponses } from '../lib/openapi'
+import { zodErrorHook } from '../lib/validation'
 import type { AppEnv } from '../types/hono-env'
 import { ApiTokenRequestSchema, ApiTokenResponseSchema } from '../schemas/api-token.schema'
 import { createApiTokenService } from '../services/api-token.service'
+import { createWeddingAccessService } from '../services/wedding-access.service'
 
 export const apiTokenController = new Hono<AppEnv>()
 
@@ -19,7 +21,7 @@ apiTokenController.get(
       successMessage: 'API tokens listed successfully',
     }),
   }),
-  validator('query', ApiTokenRequestSchema.SEARCH),
+  validator('query', ApiTokenRequestSchema.SEARCH, zodErrorHook),
   async (c) => {
     const search = c.req.valid('query')
     const service = createApiTokenService(c)
@@ -40,9 +42,13 @@ apiTokenController.post(
       status: 201,
     }),
   }),
-  validator('json', ApiTokenRequestSchema.CREATE),
+  validator('json', ApiTokenRequestSchema.CREATE, zodErrorHook),
   async (c) => {
     const body = c.req.valid('json')
+    const actor = c.get('actor')
+    const accessService = createWeddingAccessService(c)
+    accessService.assertCanAccessWedding(actor, body.weddingId)
+
     const service = createApiTokenService(c)
     const data = await service.create(body)
     return c.json({ data }, 201)
@@ -60,7 +66,7 @@ apiTokenController.get(
       successMessage: 'API token found successfully',
     }),
   }),
-  validator('param', ApiTokenRequestSchema.GET),
+  validator('param', ApiTokenRequestSchema.GET, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const service = createApiTokenService(c)
@@ -80,8 +86,8 @@ apiTokenController.put(
       successMessage: 'API token updated successfully',
     }),
   }),
-  validator('param', ApiTokenRequestSchema.GET),
-  validator('json', ApiTokenRequestSchema.UPDATE),
+  validator('param', ApiTokenRequestSchema.GET, zodErrorHook),
+  validator('json', ApiTokenRequestSchema.UPDATE, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const body = c.req.valid('json')
@@ -102,7 +108,7 @@ apiTokenController.delete(
       successMessage: 'API token deleted successfully',
     }),
   }),
-  validator('param', ApiTokenRequestSchema.DELETE),
+  validator('param', ApiTokenRequestSchema.DELETE, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const service = createApiTokenService(c)

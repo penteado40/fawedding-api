@@ -9,6 +9,7 @@ export type SearchRsvpRequest = z.infer<typeof RsvpRequestSchema.SEARCH>
 export function toRsvpResponse(rsvp: RsvpRow): RsvpModelResponse {
   return {
     id: rsvp.id,
+    weddingId: rsvp.weddingId,
     name: rsvp.name,
     email: rsvp.email,
     phone: rsvp.phone,

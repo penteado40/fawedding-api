@@ -26,9 +26,13 @@ export class ApiTokenService extends AbstractService {
   }
 
   async create(data: CreateApiTokenRequest): Promise<ApiTokenModel> {
+    const wedding = await this.prisma.wedding.findUnique({ where: { id: data.weddingId } })
+    if (!wedding) {
+      throw new HTTPException(404, { message: 'Wedding not found' })
+    }
     const token = randomUUID()
     const apiToken = await this.prisma.apiToken.create({
-      data: { name: data.name, token },
+      data: { weddingId: data.weddingId, name: data.name, token },
     })
     return toApiTokenResponse(apiToken)
   }

@@ -23,36 +23,75 @@ enum RsvpStatus {
   CONFIRMED
   DECLINED
 }
+
+enum UserRole {
+  SUPER_ADMIN
+  USER
+}
+
+model Wedding {
+  id        Int             @id @default(autoincrement())
+  name      String
+  slug      String          @unique
+  date      DateTime
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  rsvps     Rsvp[]
+  apiTokens ApiToken[]
+  managers  WeddingManager[]
+
+  @@map("weddings")
+}
+
+model WeddingManager {
+  id        Int      @id @default(autoincrement())
+  weddingId Int
+  userId    Int
+  createdAt DateTime @default(now())
+  wedding   Wedding  @relation(fields: [weddingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([weddingId, userId])
+  @@map("wedding_managers")
+}
+
 model Rsvp {
   id        Int        @id @default(autoincrement())
+  weddingId Int
   name      String
-  email     String     @unique
+  email     String
   phone     String
   status    RsvpStatus @default(CONFIRMED)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  wedding   Wedding    @relation(fields: [weddingId], references: [id])
 
+  @@unique([weddingId, email])
   @@map("rsvps")
 }
 
 model User {
-  id             Int      @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   name           String
-  email          String   @unique
+  email          String           @unique
   hashedPassword String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  role           UserRole         @default(USER)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  managedWeddings WeddingManager[]
 
   @@map("users")
 }
 
 model ApiToken {
   id        Int      @id @default(autoincrement())
+  weddingId Int
   name      String   @unique
   token     String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  wedding   Wedding  @relation(fields: [weddingId], references: [id])
 
   @@map("api_tokens")
 }

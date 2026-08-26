@@ -6,6 +6,7 @@ import { describeRoute } from 'hono-openapi'
 import { resolver, validator } from 'hono-openapi/zod'
 import { getMimeType } from 'hono/utils/mime'
 import { mapResponses } from '../lib/openapi'
+import { zodErrorHook } from '../lib/validation'
 import type { AppEnv } from '../types/hono-env'
 import { GiftRequestSchema, GiftResponseSchema } from '../schemas/gift.schema'
 import type { UpdateGiftRequest } from '../models/gift.model'
@@ -32,7 +33,7 @@ giftController.get(
       },
     },
   }),
-  validator('param', GiftRequestSchema.UPLOADS),
+  validator('param', GiftRequestSchema.UPLOADS, zodErrorHook),
   async (c) => {
     const { filename } = c.req.valid('param')
     const filePath = path.join(uploadsDir, filename)
@@ -59,7 +60,7 @@ giftController.get(
       successMessage: 'Gifts listed successfully',
     }),
   }),
-  validator('query', GiftRequestSchema.SEARCH),
+  validator('query', GiftRequestSchema.SEARCH, zodErrorHook),
   async (c) => {
     const search = c.req.valid('query')
     const service = createGiftService(c)
@@ -88,7 +89,7 @@ giftController.post(
       status: 201,
     }),
   }),
-  validator('form', GiftRequestSchema.CREATE_FORM),
+  validator('form', GiftRequestSchema.CREATE_FORM, zodErrorHook),
   async (c) => {
     const body = c.req.valid('form')
     const formData = await c.req.parseBody()
@@ -119,7 +120,7 @@ giftController.get(
       successMessage: 'Gift found successfully',
     }),
   }),
-  validator('param', GiftRequestSchema.GET),
+  validator('param', GiftRequestSchema.GET, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const service = createGiftService(c)
@@ -147,8 +148,8 @@ giftController.put(
       successMessage: 'Gift updated successfully',
     }),
   }),
-  validator('param', GiftRequestSchema.GET),
-  validator('form', GiftRequestSchema.UPDATE_FORM),
+  validator('param', GiftRequestSchema.GET, zodErrorHook),
+  validator('form', GiftRequestSchema.UPDATE_FORM, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const body = c.req.valid('form')
@@ -185,7 +186,7 @@ giftController.delete(
       successMessage: 'Gift deleted successfully',
     }),
   }),
-  validator('param', GiftRequestSchema.DELETE),
+  validator('param', GiftRequestSchema.DELETE, zodErrorHook),
   async (c) => {
     const { id } = c.req.valid('param')
     const service = createGiftService(c)
