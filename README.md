@@ -1,6 +1,6 @@
 # fawedding-api
 
-> REST API powering the [F&A Wedding](https://fawedding.com.br) ecosystem — guests, RSVPs, gift list, and messages, with a direct email confirmation flow built on Resend and React Email.
+> REST API powering the [F&A Wedding](https://fawedding.com.br) ecosystem — guests, RSVPs, and gift list, with a direct email confirmation flow built on Resend and React Email.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Hono](https://img.shields.io/badge/Hono-E36002?style=flat&logo=hono&logoColor=white)
@@ -13,15 +13,15 @@
 
 ## Overview
 
-fawedding-api is the backend for a real, production wedding website. It handles guest data, RSVP submissions, gift list, and messages to the couple — and, most importantly, sends a personalized confirmation email the moment a guest RSVPs.
+fawedding-api is the backend for a real, production wedding website. It handles guest data, RSVP submissions, and the gift list — and, most importantly, sends a personalized confirmation email the moment a guest RSVPs.
 
 When a guest submits their RSVP, the API persists the record and immediately sends a confirmation email via **Resend**, rendering the wedding-specific **React Email** template in the same request (fire-and-forget — a failed send never blocks or fails the guest's response). The platform is multi-tenant: each `Wedding` can have its own frontend, domain, and email template. Delivery outcome is tracked on the RSVP itself (`emailStatus`, `emailSentAt`, `emailError`), and a manager can trigger a manual resend if a send failed — there's no queue and no automatic retry, by design, given the project's volume (dozens to a few hundred RSVPs per wedding).
 
-This is part of the **FAWedding ecosystem**:
+This is part of the **FAWedding ecosystem**. Being multi-tenant, this API can serve more than one wedding, each with its own frontend:
 
 | Repo | Description | Deploy |
 |------|-------------|--------|
-| [fa-wedding](https://github.com/penteado40/fa-wedding) | React frontend | GitHub Pages |
+| [fawedding](https://github.com/penteado40/fawedding) | React frontend for Felipe & Amanda (wedding id `1`) | Vite |
 | **fawedding-api** | This repo — Hono REST API | Serverless |
 
 ---
@@ -32,7 +32,7 @@ This is part of the **FAWedding ecosystem**:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  fa-wedding — GitHub Pages                               │
+│  fawedding (or another wedding's frontend)                │
 │  React + TypeScript                                      │
 │                                                          │
 │  ConfirmationForm  ──POST /weddings/:id/rsvps──►  fawedding-api │
@@ -70,20 +70,33 @@ src/
 ├── services/             # Business logic — Prisma access + confirmation email send
 ├── schemas/              # Zod schemas with OpenAPI annotations
 ├── models/               # TypeScript types + response mappers (toXResponse)
-├── routes/               # Per-module route files + barrel index.ts
+├── middlewares/          # Hono middlewares (auth)
 ├── core/                 # Base classes (AbstractService)
-├── emails/                # React Email templates, one per wedding + generic fallback
+├── emails/               # Confirmation email templates — see below
 ├── lib/                  # Prisma client, OpenAPI config, Scalar docs setup, Resend client
-├── types/                # Global Hono types (AppEnv, ApplicationVariables)
-└── utils/                # Shared utilities
+└── types/                # Global Hono types (AppEnv, ApplicationVariables, Actor)
 ```
+
+### Email templates (`src/emails/`)
+
+```
+emails/
+├── types.ts                       # ConfirmationEmailProps contract every template implements
+├── registry.ts                    # weddingId → template component, falls back to generic
+└── templates/
+    ├── generic.tsx                 # ConfirmationEmailLayout (shared shell) + the fallback itself
+    ├── felipe-amanda.tsx            # ~25 lines: palette + copy + hero photo, wraps the layout
+    └── <next-wedding>.tsx           # same pattern for each new wedding
+```
+
+`ConfirmationEmailLayout` (in `generic.tsx`) is the one place that owns the actual markup — fonts, hero section, info cards, CTA, footer. Every wedding-specific template is just that layout configured with a color palette, hero image URL, and copy; adding a wedding never means duplicating HTML. The layout also degrades gracefully with no photo/venue data, which is what makes it usable as the fallback for weddings without a dedicated template.
 
 ---
 
 ## Key Technical Decisions
 
 ### Direct email send, no queue
-The API returns `201` to the guest as soon as the RSVP is saved — it never waits for the email (send is fire-and-forget). An earlier version of this project ran the send through SQS + Lambda + SES for the sake of demonstrating an async AWS pipeline; that infrastructure was built, evaluated, and then torn down as unnecessary complexity for the actual volume (dozens to a few hundred RSVPs per wedding). There's no automatic retry: a failed send is recorded on the RSVP (`emailStatus = FAILED`, `emailError`) and reprocessed only via an explicit manual resend (`POST /rsvps/:id/resend-email`) — always a deliberate action by whoever manages the wedding, never silent.
+The API returns `201` to the guest as soon as the RSVP is saved — it never waits for the email (send is fire-and-forget). An earlier version of this project ran the send through SQS + Lambda + SES for the sake of demonstrating an async AWS pipeline; that infrastructure was built, evaluated, and then torn down as unnecessary complexity for the actual volume (dozens to a few hundred RSVPs per wedding). There's no automatic retry: a failed send is recorded on the RSVP (`emailStatus = FAILED`, `emailError`) and reprocessed only via an explicit manual resend (`POST /weddings/:weddingId/rsvps/:id/resend-email`) — always a deliberate action by whoever manages the wedding, never silent.
 
 ### Template per wedding
 The platform is multi-tenant, and each wedding can have its own frontend and visual identity. The confirmation email template mirrors that: a small in-code registry maps `weddingId` → React Email component, with a generic fallback for weddings without a dedicated one. Resend accepts a React component directly (`resend.emails.send({ react: <Component /> })`), so there's no manual HTML-rendering step in the send path. The sender address is derived from `Wedding.siteUrl`'s hostname (`noreply@<hostname>`) — each domain needs to be verified in Resend before it can send for real, a manual step done once per wedding.
@@ -125,7 +138,7 @@ curl -X POST http://localhost:3000/api/api-tokens \
 
 ### Weddings — `/api/weddings`
 
-Tenant entity. Every RSVP and API token belongs to exactly one wedding.
+Tenant entity. Every RSVP and API token belongs to exactly one wedding. `siteUrl` doubles as the confirmation email's CTA link and the source for the sender domain (`noreply@<hostname of siteUrl>`) — see [Template per wedding](#template-per-wedding) above.
 
 | Method | Route | Description | Access |
 |--------|-------|-------------|--------|
@@ -149,10 +162,6 @@ Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP 
 ### Gifts — `/api/gifts`
 
 Gift list items. Each item links to the external registry (Lejour).
-
-### Messages — `/api/messages`
-
-Messages submitted by guests to the couple.
 
 > Full request/response schemas, query parameters, and example payloads are in the interactive docs at `/api/docs`.
 
@@ -229,7 +238,7 @@ Docs: `http://localhost:3000/api/docs`
 
 ## Related
 
-- **[fa-wedding](https://github.com/penteado40/fa-wedding)** — React frontend for the wedding site (GitHub Pages)
+- **[fawedding](https://github.com/penteado40/fawedding)** — React frontend for Felipe & Amanda's wedding site
 - **[inventory-api](https://github.com/penteado40/inventory-api)** — Multi-tenant inventory REST API (Hono · TypeScript · Prisma · PostgreSQL)
 
 ---

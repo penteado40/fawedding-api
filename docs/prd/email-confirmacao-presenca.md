@@ -54,6 +54,8 @@ No `RsvpService.create`, após `prisma.rsvp.create` bem-sucedido, disparar o env
 
 Cada `Wedding` pode ter um componente React Email dedicado (cópia do template mantido no respectivo frontend — frontend é a fonte da verdade visual, duplicação aceita, sem sincronização automática). Um template genérico serve de fallback para casamentos sem componente próprio ainda.
 
+Na prática, todo o markup (fontes, seção de hero, cards de data/horário/local, CTA, footer) vive num único componente compartilhado, `ConfirmationEmailLayout` (em `emails/templates/generic.tsx`). O template de cada casamento é só esse layout configurado com paleta de cores, foto de hero e textos — normalmente algumas dezenas de linhas. `GenericConfirmationEmail` (o fallback do registry) é o mesmo layout com paleta neutra e sem foto/local, já que o `Wedding` não guarda esses dados. Um casamento novo nunca duplica HTML/CSS — só adiciona um arquivo de configuração e registra em `emails/registry.ts`.
+
 ### Remetente e domínio
 
 Cada domínio de casamento (extraído de `siteUrl`) precisa estar verificado no Resend (registros DNS TXT + CNAMEs DKIM adicionados manualmente no Cloudflare daquele domínio). Passo manual, por casamento, fora do escopo automatizável.
