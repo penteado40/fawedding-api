@@ -24,3 +24,8 @@ export const BrDateSchema = z
 
     return date
   })
+  .meta({
+    type: 'string',
+    example: '28/05/2026',
+    description: 'Date in dd/mm/yyyy format',
+  })
