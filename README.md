@@ -36,7 +36,7 @@ This is part of the **FAWedding ecosystem**:
 │  fa-wedding — GitHub Pages                               │
 │  React + TypeScript                                      │
 │                                                          │
-│  ConfirmationForm  ──POST /rsvps──►  fawedding-api       │
+│  ConfirmationForm  ──POST /weddings/:id/rsvps──►  fawedding-api │
 └──────────────────────────────────────────────────────────┘
                                             │
                               validate (Zod) + persist (Prisma)
@@ -99,7 +99,10 @@ Email composition and delivery are isolated to a Lambda function — completely 
 All AWS resources (SQS queue, Lambda function, SES configuration, IAM roles and policies) are defined in TypeScript with AWS CDK. Infrastructure is version-controlled alongside the application code, reproducible from scratch in any AWS account, and can be torn down completely with a single command.
 
 ### Static bearer token auth
-The site serves a known, invite-only guest list — there are no public user accounts. A static bearer token validated against the `api_tokens` table in the database provides sufficient security without the overhead of session management or OAuth. Token creation is one-way: the raw value is shown once on `POST /api-tokens` and never again.
+The site serves a known, invite-only guest list — there are no public user accounts. A static bearer token validated against the `api_tokens` table in the database provides sufficient security without the overhead of session management or OAuth. Token creation is one-way: the raw value is shown once on `POST /api-tokens` and never again. Each token is scoped to a single wedding and can only be used to create RSVPs for that wedding.
+
+### Multi-tenant weddings
+Every RSVP and API token belongs to a `Wedding`. A `User` manages zero or more weddings (via `WeddingManager`); a `SUPER_ADMIN` bypasses that check and has unrestricted access to every wedding. Access is enforced by `WeddingAccessService` and denied requests always return `403 Forbidden`. See [API Reference](#weddings--apiweddings) below.
 
 ### Hono + Zod + OpenAPI in one pass
 The `zod-openapi` + `hono-openapi` combination lets the same Zod schema validate the request *and* generate the OpenAPI spec simultaneously. No drift between documentation and actual validation — they're the same artifact.
@@ -123,20 +126,28 @@ Token management for API authentication. The raw token value is returned **only 
 | `DELETE` | `/api-tokens/:id` | Remove token | No |
 
 ```bash
-# Create a token (first token is created via seed:token — see setup below)
+# Create a token scoped to wedding 1 (first token is created via seed:token — see setup below)
 curl -X POST http://localhost:3000/api/api-tokens \
-  -H "Authorization: Bearer <existing-token>" \
+  -H "Authorization: Bearer <existing-jwt>" \
   -H "Content-Type: application/json" \
-  -d '{"name": "frontend"}'
+  -d '{"name": "frontend", "weddingId": 1}'
 ```
 
-### Guests — `/api/guests`
+### Weddings — `/api/weddings`
 
-Guest registry. Stores names, contact info, and invitation metadata.
+Tenant entity. Every RSVP and API token belongs to exactly one wedding.
 
-### RSVPs — `/api/rsvps`
+| Method | Route | Description | Access |
+|--------|-------|-------------|--------|
+| `GET` | `/weddings` | List weddings (all for `SUPER_ADMIN`, managed-only for `USER`) | JWT |
+| `POST` | `/weddings` | Create a wedding | `SUPER_ADMIN` |
+| `GET` | `/weddings/:id` | Get wedding by id | manager or `SUPER_ADMIN` |
+| `POST` | `/weddings/:id/managers` | Link an existing user as a manager (`{ userId }`) | `SUPER_ADMIN` |
+| `DELETE` | `/weddings/:id/managers/:userId` | Unlink a manager | `SUPER_ADMIN` |
 
-Confirmation submissions. On `POST`, saves the RSVP and enqueues the SQS message that triggers the confirmation email via Lambda + SES.
+### RSVPs — `/api/weddings/:weddingId/rsvps`
+
+Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP and enqueues the SQS message that triggers the confirmation email via Lambda + SES. Email uniqueness is scoped per wedding — the same guest email can RSVP to different weddings. Reachable by a JWT-authenticated manager/`SUPER_ADMIN` (`GET`/`POST`), or by an `ApiToken` scoped to that wedding (`POST` only).
 
 ### Gifts — `/api/gifts`
 

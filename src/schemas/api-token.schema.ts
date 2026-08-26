@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 const ApiTokenBaseModelSchema = z.object({
   id: z.number().int(),
+  weddingId: z.number().int(),
   name: z.string(),
   isActive: z.boolean(),
   createdAt: z.string(),
@@ -17,6 +18,7 @@ export const ApiTokenMetaModelSchema = ApiTokenBaseModelSchema
 export const ApiTokenRequestSchema = {
   CREATE: z.object({
     name: z.string().min(1).max(200),
+    weddingId: z.number().int().positive(),
   }),
   UPDATE: z.object({
     name: z.string().min(1).max(200).optional(),

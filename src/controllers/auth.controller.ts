@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import { describeRoute } from 'hono-openapi'
 import { validator } from 'hono-openapi/zod'
 import { mapResponses } from '../lib/openapi'
+import { zodErrorHook } from '../lib/validation'
 import type { AppEnv } from '../types/hono-env'
 import { AuthRequestSchema, AuthResponseSchema } from '../schemas/auth.schema'
 import { createAuthService } from '../services/auth.service'
@@ -22,7 +23,7 @@ authController.post(
       successMessage: 'Login successful',
     }),
   }),
-  validator('json', AuthRequestSchema.LOGIN),
+  validator('json', AuthRequestSchema.LOGIN, zodErrorHook),
   async (c) => {
     const body = c.req.valid('json')
     const jwtSecret = process.env.JWT_SECRET
@@ -48,7 +49,7 @@ authController.post(
       successMessage: 'Token issued',
     }),
   }),
-  validator('form', AuthRequestSchema.TOKEN),
+  validator('form', AuthRequestSchema.TOKEN, zodErrorHook),
   async (c) => {
     const { username, password } = c.req.valid('form')
     const jwtSecret = process.env.JWT_SECRET
