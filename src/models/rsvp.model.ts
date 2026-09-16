@@ -13,6 +13,7 @@ export function toRsvpResponse(rsvp: RsvpRow): RsvpModelResponse {
     name: rsvp.name,
     email: rsvp.email,
     phone: rsvp.phone,
+    message: rsvp.message,
     status: rsvp.status,
     emailStatus: rsvp.emailStatus,
     emailSentAt: rsvp.emailSentAt ? rsvp.emailSentAt.toISOString() : null,

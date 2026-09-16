@@ -62,6 +62,7 @@ Toda rota aninhada sob `/weddings/:weddingId/...` valida acesso via `WeddingAcce
 ```
 {
   id: number, weddingId: number, name: string, email: string, phone: string,
+  message: string | null,
   status: 'PENDING' | 'CONFIRMED' | 'DECLINED',
   emailStatus: 'PENDING' | 'SENT' | 'FAILED',
   emailSentAt: string (ISO) | null,
@@ -137,7 +138,7 @@ Lista RSVPs do wedding, com filtro opcional por `status`. **Auth: JWT (gerente/`
 
 ### `POST /weddings/:weddingId/rsvps`
 Cria um RSVP e dispara o email de confirmação. **Auth: JWT (gerente/`SUPER_ADMIN`) OU ApiToken escopado a este `weddingId`** — única rota que um ApiToken pode chamar.
-- Body: `{ name: string (1-200), email: string, phone: string (1-20) }`
+- Body: `{ name: string (1-200), email: string, phone: string (1-20), message?: string (até 1000) }`
 - `201`: `{ data: Rsvp }` (com `emailStatus: 'PENDING'` no momento da resposta — o envio ainda está em andamento)
 - `409` se `email` já registrado **neste** wedding (o mesmo email pode confirmar em weddings diferentes)
 

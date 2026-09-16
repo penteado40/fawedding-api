@@ -9,6 +9,7 @@ export const RsvpModelSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   phone: z.string(),
+  message: z.string().nullable(),
   status: RsvpStatusSchema,
   emailStatus: EmailStatusSchema,
   emailSentAt: z.string().nullable(),
@@ -22,6 +23,7 @@ export const RsvpRequestSchema = {
     name: z.string().min(1).max(200),
     email: z.string().email(),
     phone: z.string().min(1).max(20),
+    message: z.string().max(1000).optional().nullable(),
   }),
   SEARCH: z
     .object({

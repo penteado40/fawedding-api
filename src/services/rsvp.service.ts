@@ -25,6 +25,7 @@ export class RsvpService extends AbstractService {
           name: data.name,
           email: data.email,
           phone: data.phone,
+          message: data.message ?? null,
         },
         include: { wedding: true },
       })

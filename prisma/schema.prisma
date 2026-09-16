@@ -93,6 +93,7 @@ model Rsvp {
   name        String
   email       String
   phone       String
+  message     String?
   status      RsvpStatus  @default(CONFIRMED)
   emailStatus EmailStatus @default(PENDING)
   emailSentAt DateTime?
