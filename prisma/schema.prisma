@@ -8,16 +8,40 @@ datasource db {
 }
 
 model Gift {
-  id         Int      @id @default(autoincrement())
-  name       String
-  image      String?
-  amazonLink String?
-  price      Decimal  @db.Decimal(12, 2)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            Int           @id @default(autoincrement())
+  weddingId     Int
+  name          String
+  description   String?
+  image         String?
+  imagePublicId String?
+  price         Decimal       @db.Decimal(12, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  wedding       Wedding       @relation(fields: [weddingId], references: [id])
+  payments      GiftPayment[]
 
   @@map("gifts")
 }
+
+model GiftPayment {
+  id        Int               @id @default(autoincrement())
+  giftId    Int
+  name      String
+  phone     String
+  value     Decimal           @db.Decimal(12, 2)
+  status    GiftPaymentStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  gift      Gift              @relation(fields: [giftId], references: [id])
+
+  @@map("gift_payments")
+}
+
+enum GiftPaymentStatus {
+  PENDING
+  CONFIRMED
+}
+
 enum RsvpStatus {
   PENDING
   CONFIRMED
@@ -36,16 +60,17 @@ enum EmailStatus {
 }
 
 model Wedding {
-  id        Int             @id @default(autoincrement())
+  id        Int              @id @default(autoincrement())
   name      String
-  slug      String          @unique
+  slug      String           @unique
   siteUrl   String
   date      DateTime
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
   rsvps     Rsvp[]
   apiTokens ApiToken[]
   managers  WeddingManager[]
+  gifts     Gift[]
 
   @@map("weddings")
 }
@@ -63,31 +88,31 @@ model WeddingManager {
 }
 
 model Rsvp {
-  id           Int         @id @default(autoincrement())
-  weddingId    Int
-  name         String
-  email        String
-  phone        String
-  status       RsvpStatus  @default(CONFIRMED)
-  emailStatus  EmailStatus @default(PENDING)
-  emailSentAt  DateTime?
-  emailError   String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  wedding      Wedding     @relation(fields: [weddingId], references: [id])
+  id          Int         @id @default(autoincrement())
+  weddingId   Int
+  name        String
+  email       String
+  phone       String
+  status      RsvpStatus  @default(CONFIRMED)
+  emailStatus EmailStatus @default(PENDING)
+  emailSentAt DateTime?
+  emailError  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  wedding     Wedding     @relation(fields: [weddingId], references: [id])
 
   @@unique([weddingId, email])
   @@map("rsvps")
 }
 
 model User {
-  id             Int              @id @default(autoincrement())
-  name           String
-  email          String           @unique
-  hashedPassword String
-  role           UserRole         @default(USER)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id              Int              @id @default(autoincrement())
+  name            String
+  email           String           @unique
+  hashedPassword  String
+  role            UserRole         @default(USER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   managedWeddings WeddingManager[]
 
   @@map("users")

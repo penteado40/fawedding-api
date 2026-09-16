@@ -2,11 +2,9 @@ import { verify } from 'hono/jwt'
 import { createMiddleware } from 'hono/factory'
 import { HTTPException } from 'hono/http-exception'
 import type { AppEnv } from '../types/hono-env'
+import { isApiTokenRouteAllowed } from '../lib/api-token-routes'
 
 const PUBLIC_PATHS = new Set(['/api/openapi', '/api/docs', '/api/auth/login', '/api/auth/token'])
-
-// ApiToken actors are only ever allowed to hit this single route/verb combination.
-const API_TOKEN_ALLOWED_ROUTE = /^\/api\/weddings\/\d+\/rsvps$/
 
 export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   if (PUBLIC_PATHS.has(c.req.path)) {
@@ -61,7 +59,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     throw new HTTPException(401, { message: 'Unauthorized' })
   }
 
-  if (c.req.method !== 'POST' || !API_TOKEN_ALLOWED_ROUTE.test(c.req.path)) {
+  if (!isApiTokenRouteAllowed(c.req.method, c.req.path)) {
     throw new HTTPException(403, { message: 'Forbidden' })
   }
 
