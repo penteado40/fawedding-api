@@ -16,7 +16,6 @@ export function toGiftResponse(gift: GiftRow): GiftModelResponse {
     name: gift.name,
     description: gift.description,
     image: gift.image,
-    amazonLink: gift.amazonLink,
     price: Number(gift.price),
     createdAt: gift.createdAt.toISOString(),
     updatedAt: gift.updatedAt.toISOString(),

@@ -161,7 +161,7 @@ Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP 
 
 ### Gifts — `/api/gifts` and `/api/weddings/:weddingId/gifts`
 
-Gift list items, scoped to a wedding (`weddingId`). The original flat routes remain for admin management (image upload to local disk via `multipart/form-data`); the nested routes are the tenant-scoped, read-only surface reachable by a wedding's `ApiToken`.
+Gift list items, scoped to a wedding (`weddingId`). The original flat routes remain for admin management (`multipart/form-data`, image uploaded to Cloudinary server-side); the nested routes are the tenant-scoped, read-only surface reachable by a wedding's `ApiToken`.
 
 | Method | Route | Access |
 |--------|-------|--------|

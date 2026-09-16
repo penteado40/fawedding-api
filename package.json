@@ -20,6 +20,7 @@
     "@react-email/render": "^2.1.0",
     "@scalar/hono-api-reference": "^0.9.13",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "hono": "^4.7.1",
     "hono-openapi": "^0.4.8",
     "react": "^19.2.8",
