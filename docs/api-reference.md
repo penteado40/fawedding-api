@@ -77,9 +77,9 @@ Toda rota aninhada sob `/weddings/:weddingId/...` valida acesso via `WeddingAcce
 
 ### Gift
 ```
-{ id: number, name: string, image: string | null, amazonLink: string | null, price: number, createdAt: string, updatedAt: string }
+{ id: number, name: string, image: string | null, price: number, createdAt: string, updatedAt: string }
 ```
-`image` é o nome do arquivo salvo em `uploads/` — a URL completa é `{API_URL}/gifts/uploads/{image}`.
+`image` é a URL completa do asset no Cloudinary.
 
 ---
 
@@ -185,35 +185,32 @@ Remove o token permanentemente — requisições em andamento com esse token pas
 
 ## Gifts — `/api/gifts`
 
-Lista de presentes. Não é escopada por wedding (lista global, única) e não tem checagem de gerência — qualquer ator `user` autenticado (`SUPER_ADMIN` ou `USER`, de qualquer wedding) pode ler e escrever.
+Lista de presentes, escopada por `weddingId`. Checagem de gerência: `SUPER_ADMIN` acessa qualquer wedding; `USER` só o(s) que gerencia (`WeddingManager`). `image`, quando presente, é a URL completa do asset no Cloudinary (upload feito pela própria API a partir do arquivo enviado).
 
 ### `GET /gifts`
-Lista presentes, com filtro opcional por `name` (parcial, case-insensitive). **Auth: JWT.**
-- Query: `{ name?: string }`
+Lista presentes, com filtro opcional por `name` (parcial, case-insensitive) e `weddingId`. **Auth: JWT.**
+- `SUPER_ADMIN`: sem `weddingId` retorna todos; com `weddingId`, filtra por aquele wedding.
+- `USER`: sem `weddingId` retorna automaticamente só os presentes do(s) wedding(s) que gerencia; com `weddingId` explícito, `403` se não gerenciar aquele wedding.
+- Query: `{ name?: string, weddingId?: number }`
 - `200`: `{ data: Gift[] }`
 
 ### `POST /gifts`
-Cria um presente. **Auth: JWT.** Body `multipart/form-data`.
-- Form: `{ name: string (1-200), price: number > 0, amazonLink?: string (URL) | '', image?: file }`
+Cria um presente. **Auth: JWT** — `403` se o `USER` não gerenciar o `weddingId` informado. Body `multipart/form-data`.
+- Form: `{ weddingId: number, name: string (1-200), price: number > 0, image?: file (image/jpeg, image/png, image/webp, image/gif, até 5MB) }`
 - `201`: `{ data: Gift }`
 
 ### `GET /gifts/:id`
-Busca um presente por id (UUID). **Auth: JWT.**
-- `200`: `{ data: Gift }` · `404` se não existir
+Busca um presente por id. **Auth: JWT** — `404` se não existir ou pertencer a um wedding que o `USER` não gerencia (oculta a existência cross-tenant).
+- `200`: `{ data: Gift }`
 
 ### `PUT /gifts/:id`
-Atualiza um presente (campos omitidos ficam como estavam; omitir `image` mantém o arquivo atual). **Auth: JWT.** Body `multipart/form-data`.
-- Form: `{ name?, price?, amazonLink?, image?: file }`
+Atualiza um presente (campos omitidos ficam como estavam; omitir `image` mantém a atual — enviar uma nova sobe pro Cloudinary e apaga a anterior). **Auth: JWT** — mesma regra de `404` cross-tenant do `GET /gifts/:id`. Body `multipart/form-data`.
+- Form: `{ name?, price?, image?: file }`
 - `200`: `{ data: Gift }`
 
 ### `DELETE /gifts/:id`
-Remove um presente. **Auth: JWT.**
+Remove um presente (e sua imagem no Cloudinary, se houver). **Auth: JWT** — mesma regra de `404` cross-tenant do `GET /gifts/:id`.
 - `200`: `{ data: Gift }` (registro removido)
-
-### `GET /gifts/uploads/:filename`
-Serve o arquivo de imagem salvo em `uploads/`. **Auth: JWT.**
-- `200`: binário da imagem (`Content-Type` pelo mime do arquivo)
-- `404`: `{ message: 'Image not found' }` se o arquivo não existir
 
 ---
 

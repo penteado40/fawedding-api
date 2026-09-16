@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import { describeRoute } from 'hono-openapi'
 import { validator } from 'hono-openapi/zod'
 import { mapResponses } from '../lib/openapi'
@@ -96,11 +97,15 @@ rsvpController.get(
   describeRoute({
     summary: 'Preview confirmation email',
     description:
-      'Renders the confirmation email template for this wedding with mocked guest data, for visual review in the browser. Does not send an email or require an existing RSVP.',
+      'Renders the confirmation email template for this wedding with mocked guest data, for visual review in the browser. Does not send an email or require an existing RSVP. Dev-only — disabled in production.',
     tags: ['RSVPs'],
   }),
   validator('param', WeddingIdParamSchema, zodErrorHook),
   async (c) => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new HTTPException(404, { message: 'Not found' })
+    }
+
     const { weddingId } = c.req.valid('param')
     const actor = c.get('actor')
     const accessService = createWeddingAccessService(c)

@@ -1,9 +1,6 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
-import { serveStatic } from '@hono/node-server/serve-static'
 import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
@@ -14,8 +11,6 @@ import { giftController } from './controllers/gift.controller'
 import { weddingController } from './controllers/wedding.controller'
 import { apiTokenController } from './controllers/api-token.controller'
 import type { AppEnv } from './types/hono-env'
-
-fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true })
 
 export const app = new Hono<AppEnv>().basePath('/api')
 
@@ -33,14 +28,12 @@ app.use(
   cors({
     origin: '*',
     allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
+    allowMethods: ['POST', 'GET', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['Content-Length'],
     maxAge: 600,
     credentials: true,
   }),
 )
-
-app.use('/uploads/*', serveStatic({ root: './' }))
 
 app.use('*', authMiddleware)
 

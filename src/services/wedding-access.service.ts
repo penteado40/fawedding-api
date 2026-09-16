@@ -4,12 +4,15 @@ import { AbstractService } from '../core/abstract-service'
 import type { AppEnv, Actor } from '../types/hono-env'
 
 export class WeddingAccessService extends AbstractService {
-  assertCanAccessWedding(actor: Actor, weddingId: number): void {
+  canAccessWedding(actor: Actor, weddingId: number): boolean {
     if (actor.kind === 'user') {
-      if (actor.role === 'SUPER_ADMIN' || actor.managedWeddingIds.includes(weddingId)) {
-        return
-      }
-    } else if (actor.weddingId === weddingId) {
+      return actor.role === 'SUPER_ADMIN' || actor.managedWeddingIds.includes(weddingId)
+    }
+    return actor.weddingId === weddingId
+  }
+
+  assertCanAccessWedding(actor: Actor, weddingId: number): void {
+    if (this.canAccessWedding(actor, weddingId)) {
       return
     }
     throw new HTTPException(403, { message: 'Forbidden' })
