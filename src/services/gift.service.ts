@@ -14,18 +14,37 @@ import { toGiftResponse } from '../models/gift.model'
 export class GiftService extends AbstractService {
   async list(search: SearchGiftRequest = {}): Promise<GiftModelResponse[]> {
     const gifts = await this.prisma.gift.findMany({
-      where: search.name
-        ? { name: { contains: search.name, mode: 'insensitive' } }
-        : {},
+      where: {
+        ...(search.name ? { name: { contains: search.name, mode: 'insensitive' } } : {}),
+        ...(search.weddingId ? { weddingId: search.weddingId } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     })
     return gifts.map(toGiftResponse)
   }
 
+  async listForWedding(weddingId: number): Promise<GiftModelResponse[]> {
+    const gifts = await this.prisma.gift.findMany({
+      where: { weddingId },
+      orderBy: { createdAt: 'desc' },
+    })
+    return gifts.map(toGiftResponse)
+  }
+
+  async getByIdForWedding(weddingId: number, id: number): Promise<GiftModelResponse> {
+    const gift = await this.prisma.gift.findFirst({ where: { id, weddingId } })
+    if (!gift) {
+      throw new HTTPException(404, { message: 'Gift not found' })
+    }
+    return toGiftResponse(gift)
+  }
+
   async create(data: CreateGiftRequest): Promise<GiftModelResponse> {
     const gift = await this.prisma.gift.create({
       data: {
+        weddingId: data.weddingId,
         name: data.name,
+        description: data.description ?? null,
         image: data.image ?? null,
         amazonLink: data.amazonLink ?? null,
         price: new Prisma.Decimal(data.price),
@@ -68,6 +87,7 @@ export class GiftService extends AbstractService {
 function buildUpdateInput(data: UpdateGiftRequest): Prisma.GiftUpdateInput {
   const out: Prisma.GiftUpdateInput = {}
   if (data.name !== undefined) out.name = data.name
+  if (data.description !== undefined) out.description = { set: data.description ?? null }
   if (data.image !== undefined) out.image = { set: data.image ?? null }
   if (data.amazonLink !== undefined) out.amazonLink = { set: data.amazonLink ?? null }
   if (data.price !== undefined) out.price = new Prisma.Decimal(data.price)

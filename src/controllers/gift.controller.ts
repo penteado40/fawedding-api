@@ -158,6 +158,7 @@ giftController.put(
 
     const patch: UpdateGiftRequest = {
       name: body.name,
+      description: body.description,
       price: body.price,
       amazonLink: body.amazonLink,
     }

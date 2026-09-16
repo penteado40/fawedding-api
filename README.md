@@ -159,9 +159,29 @@ Confirmation submissions, nested under their wedding. On `POST`, saves the RSVP 
 | `POST` | `/weddings/:weddingId/rsvps/:id/resend-email` | Manually resend the confirmation email |
 | `GET` | `/weddings/:weddingId/rsvps/email-preview` | Render the wedding's email template with mocked data, in-browser |
 
-### Gifts — `/api/gifts`
+### Gifts — `/api/gifts` and `/api/weddings/:weddingId/gifts`
 
-Gift list items. Each item links to the external registry (Lejour).
+Gift list items, scoped to a wedding (`weddingId`). The original flat routes remain for admin management (image upload to local disk via `multipart/form-data`); the nested routes are the tenant-scoped, read-only surface reachable by a wedding's `ApiToken`.
+
+| Method | Route | Access |
+|--------|-------|--------|
+| `GET` | `/gifts` (optional `?weddingId=`) | JWT |
+| `POST` | `/gifts` | JWT |
+| `GET` | `/gifts/:id` | JWT |
+| `PUT` | `/gifts/:id` | JWT |
+| `DELETE` | `/gifts/:id` | JWT |
+| `GET` | `/weddings/:weddingId/gifts` | JWT or `ApiToken` scoped to that wedding |
+| `GET` | `/weddings/:weddingId/gifts/:id` | JWT or `ApiToken` scoped to that wedding |
+
+### Gift Payments — `/api/weddings/:weddingId/gift-payments`
+
+Logs a guest's PIX payment claim against a gift. The QR code itself is generated client-side and images are hosted externally (e.g. Cloudinary) — this API only persists what it's given. A claim starts as `PENDING` and is only marked `CONFIRMED` by whoever manages the wedding, after manually verifying the PIX arrived.
+
+| Method | Route | Description | Access |
+|--------|-------|-------------|--------|
+| `POST` | `/weddings/:weddingId/gift-payments` | Create a payment claim, status `PENDING`. 404 if the gift doesn't belong to this wedding | JWT or `ApiToken` scoped to that wedding |
+| `GET` | `/weddings/:weddingId/gift-payments` | List all payment claims for the wedding, including each gift | JWT only |
+| `PATCH` | `/weddings/:weddingId/gift-payments/:id/confirm` | Mark a payment claim `CONFIRMED` | JWT or `ApiToken` scoped to that wedding |
 
 > Full request/response schemas, query parameters, and example payloads are in the interactive docs at `/api/docs`.
 

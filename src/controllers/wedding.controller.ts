@@ -14,6 +14,8 @@ import { createWeddingService } from '../services/wedding.service'
 import { createWeddingManagerService } from '../services/wedding-manager.service'
 import { createWeddingAccessService } from '../services/wedding-access.service'
 import { rsvpController } from './rsvp.controller'
+import { weddingGiftController } from './wedding-gift.controller'
+import { giftPaymentController } from './gift-payment.controller'
 
 export const weddingController = new Hono<AppEnv>()
 
@@ -138,3 +140,5 @@ weddingController.delete(
 )
 
 weddingController.route('/:weddingId/rsvps', rsvpController)
+weddingController.route('/:weddingId/gifts', weddingGiftController)
+weddingController.route('/:weddingId/gift-payments', giftPaymentController)

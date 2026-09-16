@@ -12,7 +12,9 @@ export type SearchGiftRequest = z.infer<typeof GiftRequestSchema.SEARCH>
 export function toGiftResponse(gift: GiftRow): GiftModelResponse {
   return {
     id: gift.id,
+    weddingId: gift.weddingId,
     name: gift.name,
+    description: gift.description,
     image: gift.image,
     amazonLink: gift.amazonLink,
     price: Number(gift.price),
