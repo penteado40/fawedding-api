@@ -38,18 +38,39 @@ export class GiftPaymentService extends AbstractService {
   }
 
   async confirm(weddingId: number, id: number): Promise<GiftPaymentModelResponse> {
+    return this.transitionFromPending(weddingId, id, 'CONFIRMED', 'confirmed')
+  }
+
+  async cancel(weddingId: number, id: number): Promise<GiftPaymentModelResponse> {
+    return this.transitionFromPending(weddingId, id, 'CANCELLED', 'cancelled')
+  }
+
+  private async transitionFromPending(
+    weddingId: number,
+    id: number,
+    status: 'CONFIRMED' | 'CANCELLED',
+    verb: string,
+  ): Promise<GiftPaymentModelResponse> {
     const payment = await this.prisma.giftPayment.findFirst({
       where: { id, gift: { weddingId } },
     })
     if (!payment) {
       throw new HTTPException(404, { message: 'Gift payment not found' })
     }
+    if (payment.status !== 'PENDING') {
+      throw new HTTPException(409, { message: `Only PENDING gift payments can be ${verb}` })
+    }
 
-    const updated = await this.prisma.giftPayment.update({
-      where: { id },
-      data: { status: 'CONFIRMED' },
+    const updated = await this.prisma.giftPayment.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status },
     })
-    return toGiftPaymentResponse(updated)
+    if (updated.count === 0) {
+      throw new HTTPException(409, { message: `Only PENDING gift payments can be ${verb}` })
+    }
+
+    const result = await this.prisma.giftPayment.findUniqueOrThrow({ where: { id } })
+    return toGiftPaymentResponse(result)
   }
 }
 

@@ -7,4 +7,5 @@ export const RATE_LIMITS = {
   RSVP_CREATE: { limit: 10, windowMs: MINUTE_MS },
   GIFT_PAYMENT_CREATE: { limit: 10, windowMs: MINUTE_MS },
   GIFT_PAYMENT_CONFIRM: { limit: 30, windowMs: MINUTE_MS },
+  GIFT_PAYMENT_CANCEL: { limit: 30, windowMs: MINUTE_MS },
 } as const

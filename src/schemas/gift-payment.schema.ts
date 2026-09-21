@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { GiftModelSchema } from './gift.schema'
 
-export const GiftPaymentStatusSchema = z.enum(['PENDING', 'CONFIRMED'])
+export const GiftPaymentStatusSchema = z.enum(['PENDING', 'CONFIRMED', 'CANCELLED'])
 
 export const GiftPaymentModelSchema = z.object({
   id: z.number().int(),

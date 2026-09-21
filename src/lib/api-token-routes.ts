@@ -13,6 +13,7 @@ export const API_TOKEN_ALLOWED_ROUTES: ApiTokenRoute[] = [
   { method: 'GET', pattern: /^\/api\/weddings\/\d+\/gifts\/\d+$/ },
   { method: 'POST', pattern: /^\/api\/weddings\/\d+\/gift-payments$/ },
   { method: 'PATCH', pattern: /^\/api\/weddings\/\d+\/gift-payments\/\d+\/confirm$/ },
+  { method: 'PATCH', pattern: /^\/api\/weddings\/\d+\/gift-payments\/\d+\/cancel$/ },
 ]
 
 export function isApiTokenRouteAllowed(method: string, path: string): boolean {

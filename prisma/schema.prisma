@@ -40,6 +40,7 @@ model GiftPayment {
 enum GiftPaymentStatus {
   PENDING
   CONFIRMED
+  CANCELLED
 }
 
 enum RsvpStatus {

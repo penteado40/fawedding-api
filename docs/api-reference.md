@@ -24,7 +24,14 @@ O valor do Bearer token determina o tipo de ator, sem rota separada:
 1. **JWT** (contém `.`, obtido via `POST /auth/login`) → ator `user`. Tem `role` (`SUPER_ADMIN` ou `USER`) e a lista de `weddingId`s que gerencia (via `WeddingManager`). `SUPER_ADMIN` ignora o vínculo de gerência e acessa qualquer wedding.
 2. **API Token** (string opaca, criada via `POST /api-tokens`) → ator `apiToken`, vinculado a **um único** `weddingId`. Uso pensado para o frontend público de cada casamento.
 
-**Importante:** um ator `apiToken` só pode fazer **uma única coisa**: `POST /weddings/:weddingId/rsvps` no wedding ao qual foi emitido. Qualquer outra rota (incluindo `GET` na mesma rota de RSVPs) retorna `403` pra esse tipo de ator — é enforçado no middleware de auth, não rota a rota.
+**Importante:** um ator `apiToken` só pode chamar um conjunto fixo de rotas, no wedding ao qual foi emitido:
+- `POST /weddings/:weddingId/rsvps`
+- `GET /weddings/:weddingId/gifts` e `GET /weddings/:weddingId/gifts/:id`
+- `POST /weddings/:weddingId/gift-payments`
+- `PATCH /weddings/:weddingId/gift-payments/:id/confirm`
+- `PATCH /weddings/:weddingId/gift-payments/:id/cancel`
+
+Qualquer outra rota (incluindo `GET` em RSVPs) retorna `403` pra esse tipo de ator — é enforçado no middleware de auth (lista em `api-token-routes`), não rota a rota.
 
 Toda rota aninhada sob `/weddings/:weddingId/...` valida acesso via `WeddingAccessService.assertCanAccessWedding(actor, weddingId)`: `SUPER_ADMIN` ou gerente daquele wedding → passa; `apiToken` só passa se `weddingId` bater com o token; qualquer outro caso → `403 Forbidden`.
 
@@ -81,6 +88,12 @@ Toda rota aninhada sob `/weddings/:weddingId/...` valida acesso via `WeddingAcce
 { id: number, name: string, image: string | null, price: number, createdAt: string, updatedAt: string }
 ```
 `image` é a URL completa do asset no Cloudinary.
+
+### GiftPayment
+```
+{ id: number, giftId: number, name: string, phone: string, value: number, status: 'PENDING' | 'CONFIRMED' | 'CANCELLED', createdAt: string, updatedAt: string }
+```
+Registro de que um convidado diz ter pago um presente via PIX. Nasce `PENDING`. Transições: `PENDING` → `CONFIRMED` ou `PENDING` → `CANCELLED`; ambos os estados finais são terminais (não voltam pra `PENDING` nem trocam entre si).
 
 ---
 
@@ -212,6 +225,34 @@ Atualiza um presente (campos omitidos ficam como estavam; omitir `image` mantém
 ### `DELETE /gifts/:id`
 Remove um presente (e sua imagem no Cloudinary, se houver). **Auth: JWT** — mesma regra de `404` cross-tenant do `GET /gifts/:id`.
 - `200`: `{ data: Gift }` (registro removido)
+
+---
+
+## Gift Payments — `/api/weddings/:weddingId/gift-payments`
+
+Pagamentos (PIX) de presentes, aninhados por wedding. Validação manual: o convidado registra o pagamento (`PENDING`) e o gerente confirma (`CONFIRMED`) depois de checar que o PIX chegou, ou cancela (`CANCELLED`) se não chegou ou o registro estava errado. Só `PENDING` pode mudar de status; `CONFIRMED` e `CANCELLED` são terminais. Cancelar não altera o presente nem outros pagamentos.
+
+### `GET /weddings/:weddingId/gift-payments`
+Lista todos os pagamentos do wedding, mais recentes primeiro, **incluindo os `CANCELLED`**, cada um com o presente (`gift`). **Auth: JWT (gerente/`SUPER_ADMIN`).**
+- `200`: `{ data: (GiftPayment & { gift: Gift })[] }`
+
+### `POST /weddings/:weddingId/gift-payments`
+Registra um pagamento, com `status: PENDING`. **Auth: JWT (gerente/`SUPER_ADMIN`) OU ApiToken escopado a este `weddingId`.** Rate limit: 10/min.
+- Body: `{ giftId: number, name: string (1-200), phone: string (1-20), value: number > 0 }`
+- `201`: `{ data: GiftPayment }`
+- `404` se `giftId` não existir neste wedding
+
+### `PATCH /weddings/:weddingId/gift-payments/:id/confirm`
+Marca o pagamento como `CONFIRMED`. **Auth: JWT (gerente/`SUPER_ADMIN`) OU ApiToken escopado a este `weddingId`.** Rate limit: 30/min. Sem body.
+- `200`: `{ data: GiftPayment }`
+- `404` se o pagamento não existir neste wedding
+- `409` se o pagamento não estiver `PENDING` (inclusive se já estiver `CONFIRMED` — não é idempotente)
+
+### `PATCH /weddings/:weddingId/gift-payments/:id/cancel`
+Marca o pagamento como `CANCELLED` (PIX que não chegou, valor/presente errado, registro duplicado). **Auth: JWT (gerente/`SUPER_ADMIN`) OU ApiToken escopado a este `weddingId`** (mesmas permissões do `confirm`). Rate limit: 30/min (separado do `confirm`). Sem body.
+- `200`: `{ data: GiftPayment }`
+- `404` se o pagamento não existir neste wedding
+- `409` se o pagamento não estiver `PENDING` (`CONFIRMED` não pode ser cancelado, e `CANCELLED` não pode ser cancelado de novo)
 
 ---
 
