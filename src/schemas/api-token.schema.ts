@@ -41,6 +41,6 @@ export const ApiTokenResponseSchema = {
     data: ApiTokenMetaModelSchema,
   }),
   COLLECTION: z.object({
-    data: z.array(ApiTokenModelSchema),
+    data: z.array(ApiTokenMetaModelSchema),
   }),
 }

@@ -1,6 +1,7 @@
 .env
 .env.example
 /node_modules
+/dist
 /.cursor
 /.claude
 /.agents

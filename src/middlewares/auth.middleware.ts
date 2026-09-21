@@ -3,6 +3,7 @@ import { createMiddleware } from 'hono/factory'
 import { HTTPException } from 'hono/http-exception'
 import type { AppEnv } from '../types/hono-env'
 import { isApiTokenRouteAllowed } from '../lib/api-token-routes'
+import { hashToken } from '../lib/token-hash'
 
 const PUBLIC_PATHS = new Set(['/api/openapi', '/api/docs', '/api/auth/login', '/api/auth/token'])
 
@@ -52,7 +53,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   const apiToken = await prisma.apiToken.findUnique({
-    where: { token, isActive: true },
+    where: { tokenHash: hashToken(token), isActive: true },
   })
 
   if (!apiToken) {

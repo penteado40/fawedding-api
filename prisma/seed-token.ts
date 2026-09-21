@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, createHash } from 'node:crypto'
 
 async function main() {
   const weddingId = Number(process.env.WEDDING_ID ?? 1)
@@ -8,7 +8,8 @@ async function main() {
     datasources: { db: { url: process.env.DATABASE_URL } },
   })
   const token = randomUUID()
-  await prisma.apiToken.create({ data: { name: 'admin', token, weddingId } })
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+  await prisma.apiToken.create({ data: { name: 'admin', token, tokenHash, weddingId } })
   console.log('Token criado:', token)
   await prisma.$disconnect()
 }

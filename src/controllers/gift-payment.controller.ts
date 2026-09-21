@@ -8,8 +8,13 @@ import { WeddingIdParamSchema } from '../schemas/wedding.schema'
 import { GiftPaymentRequestSchema, GiftPaymentResponseSchema } from '../schemas/gift-payment.schema'
 import { createGiftPaymentService } from '../services/gift-payment.service'
 import { createWeddingAccessService } from '../services/wedding-access.service'
+import { rateLimitMiddleware } from '../middlewares/rate-limit.middleware'
+import { RATE_LIMITS } from '../lib/rate-limit-config'
 
 export const giftPaymentController = new Hono<AppEnv>()
+
+const giftPaymentCreateRateLimit = rateLimitMiddleware(RATE_LIMITS.GIFT_PAYMENT_CREATE)
+const giftPaymentConfirmRateLimit = rateLimitMiddleware(RATE_LIMITS.GIFT_PAYMENT_CONFIRM)
 
 giftPaymentController.get(
   '/',
@@ -37,6 +42,7 @@ giftPaymentController.get(
 
 giftPaymentController.post(
   '/',
+  giftPaymentCreateRateLimit,
   describeRoute({
     summary: 'Create gift payment',
     description: 'Logs a PIX payment claim for a gift. Starts with status PENDING. 404 if the gift does not exist in this wedding.',
@@ -64,6 +70,7 @@ giftPaymentController.post(
 
 giftPaymentController.patch(
   '/:id/confirm',
+  giftPaymentConfirmRateLimit,
   describeRoute({
     summary: 'Confirm gift payment',
     description: 'Marks a gift payment claim as CONFIRMED, once the PIX has been manually verified as received.',

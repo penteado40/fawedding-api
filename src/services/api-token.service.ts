@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { HTTPException } from 'hono/http-exception'
 import type { Context } from 'hono'
 import { AbstractService } from '../core/abstract-service'
+import { hashToken } from '../lib/token-hash'
 import type { AppEnv } from '../types/hono-env'
 import type {
   ApiTokenMeta,
@@ -13,7 +14,7 @@ import type {
 import { toApiTokenMeta, toApiTokenResponse } from '../models/api-token.model'
 
 export class ApiTokenService extends AbstractService {
-  async list(search: SearchApiTokenRequest = {}): Promise<ApiTokenModel[]> {
+  async list(search: SearchApiTokenRequest = {}): Promise<ApiTokenMeta[]> {
     const tokens = await this.prisma.apiToken.findMany({
       where: {
         ...(search.name !== undefined && { name: { contains: search.name, mode: 'insensitive' } }),
@@ -22,7 +23,7 @@ export class ApiTokenService extends AbstractService {
       },
       orderBy: { createdAt: 'desc' },
     })
-    return tokens.map(toApiTokenResponse)
+    return tokens.map(toApiTokenMeta)
   }
 
   async create(data: CreateApiTokenRequest): Promise<ApiTokenModel> {
@@ -32,7 +33,7 @@ export class ApiTokenService extends AbstractService {
     }
     const token = randomUUID()
     const apiToken = await this.prisma.apiToken.create({
-      data: { weddingId: data.weddingId, name: data.name, token },
+      data: { weddingId: data.weddingId, name: data.name, token, tokenHash: hashToken(token) },
     })
     return toApiTokenResponse(apiToken)
   }
