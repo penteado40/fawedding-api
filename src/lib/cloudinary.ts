@@ -34,6 +34,14 @@ export async function uploadGiftImage(weddingId: number, buffer: Buffer, filenam
   return { url: result.secure_url, publicId: result.public_id }
 }
 
+export async function uploadGiftImageFromUrl(weddingId: number, imageUrl: string): Promise<UploadedImage> {
+  const result = await cloudinary.uploader.upload(imageUrl, {
+    folder: `fawedding/${weddingId}/gifts`,
+    unique_filename: true,
+  })
+  return { url: result.secure_url, publicId: result.public_id }
+}
+
 export async function deleteGiftImage(publicId: string): Promise<void> {
   await cloudinary.uploader.destroy(publicId)
 }
