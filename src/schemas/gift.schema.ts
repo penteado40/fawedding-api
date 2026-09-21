@@ -25,6 +25,7 @@ export const GiftRequestSchema = {
     description: z.string().max(2000).optional().nullable(),
     price: z.coerce.number().positive(),
     image: z.any().optional().meta({ type: 'string', format: 'binary' }),
+    imageUrl: z.string().url().max(2048).optional(),
   }),
   UPDATE: z.object({
     name: z.string().min(1).max(200).optional(),
@@ -37,6 +38,7 @@ export const GiftRequestSchema = {
     description: z.string().max(2000).optional().nullable(),
     price: z.coerce.number().positive().optional(),
     image: z.any().optional().meta({ type: 'string', format: 'binary' }),
+    imageUrl: z.string().url().max(2048).optional(),
   }),
   GET: z.object({
     id: z.coerce.number().int().positive(),

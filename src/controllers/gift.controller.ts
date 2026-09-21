@@ -4,16 +4,17 @@ import { describeRoute } from 'hono-openapi'
 import { resolver, validator } from 'hono-openapi/zod'
 import { mapResponses } from '../lib/openapi'
 import { zodErrorHook } from '../lib/validation'
+import { assertAllowedImageUrl } from '../lib/image-url'
 import type { AppEnv } from '../types/hono-env'
 import { GiftRequestSchema, GiftResponseSchema } from '../schemas/gift.schema'
-import type { UpdateGiftInput } from '../services/gift.service'
+import type { GiftImageInput, UpdateGiftInput } from '../services/gift.service'
 import { createGiftService } from '../services/gift.service'
 import { createWeddingAccessService } from '../services/wedding-access.service'
 
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
-async function readImageFile(file: File): Promise<{ buffer: Buffer; filename: string }> {
+async function readImageFile(file: File): Promise<GiftImageInput> {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     throw new HTTPException(400, { message: 'Image must be one of: image/jpeg, image/png, image/webp, image/gif' })
   }
@@ -21,7 +22,18 @@ async function readImageFile(file: File): Promise<{ buffer: Buffer; filename: st
     throw new HTTPException(400, { message: 'Image must be 5MB or smaller' })
   }
   const buffer = Buffer.from(await file.arrayBuffer())
-  return { buffer, filename: file.name }
+  return { kind: 'file', buffer, filename: file.name }
+}
+
+// Resolves the image source of a request: an uploaded file, an allowed imageUrl, or none.
+async function resolveImageInput(imageFile: unknown, imageUrl: string | undefined): Promise<GiftImageInput | undefined> {
+  const file = imageFile instanceof File ? imageFile : undefined
+  if (file && imageUrl) {
+    throw new HTTPException(400, { message: 'Send either image or imageUrl, not both' })
+  }
+  if (file) return readImageFile(file)
+  if (imageUrl) return { kind: 'url', url: assertAllowedImageUrl(imageUrl) }
+  return undefined
 }
 
 export const giftController = new Hono<AppEnv>()
@@ -63,7 +75,7 @@ giftController.post(
   describeRoute({
     summary: 'Create gift',
     description:
-      'Adds a new gift item via multipart/form-data with name, price and image file. The image is uploaded to Cloudinary; accepted types are image/jpeg, image/png, image/webp, image/gif, up to 5MB.',
+      'Adds a new gift item via multipart/form-data with name, price and an image, sent either as an image file or as an imageUrl (not both). The image is uploaded to Cloudinary; accepted types are image/jpeg, image/png, image/webp, image/gif, up to 5MB for files. imageUrl must be https on an allowed host (images.unsplash.com); 422 if Cloudinary cannot fetch it.',
     tags: ['Gifts'],
     requestBody: {
       required: true,
@@ -88,7 +100,7 @@ giftController.post(
     const formData = await c.req.parseBody()
     const imageFile = formData['image']
 
-    const image = imageFile instanceof File ? await readImageFile(imageFile) : undefined
+    const image = await resolveImageInput(imageFile, body.imageUrl)
 
     const service = createGiftService(c)
     const data = await service.create(body, image)
@@ -122,7 +134,7 @@ giftController.put(
   describeRoute({
     summary: 'Update gift',
     description:
-      'Updates an existing gift via multipart/form-data. Omitted fields are left unchanged. Omitting image keeps the existing one; sending a new image uploads it to Cloudinary and replaces the previous one there.',
+      'Updates an existing gift via multipart/form-data. Omitted fields are left unchanged. Omitting image keeps the existing one; sending a new image (file or imageUrl, not both) uploads it to Cloudinary and replaces the previous one there. imageUrl must be https on an allowed host (images.unsplash.com); 422 if Cloudinary cannot fetch it.',
     tags: ['Gifts'],
     requestBody: {
       required: false,
@@ -152,7 +164,7 @@ giftController.put(
       price: body.price,
     }
 
-    const image = imageFile instanceof File ? await readImageFile(imageFile) : undefined
+    const image = await resolveImageInput(imageFile, body.imageUrl)
 
     const service = createGiftService(c)
     const data = await service.update(actor, id, patch, image)

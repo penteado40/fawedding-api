@@ -10,12 +10,26 @@ import type {
   UpdateGiftRequest,
 } from '../models/gift.model'
 import { toGiftResponse } from '../models/gift.model'
-import { deleteGiftImage, uploadGiftImage } from '../lib/cloudinary'
+import { deleteGiftImage, uploadGiftImage, uploadGiftImageFromUrl } from '../lib/cloudinary'
+import type { UploadedImage } from '../lib/cloudinary'
 import { WeddingAccessService } from './wedding-access.service'
 
-export type GiftImageInput = {
-  buffer: Buffer
-  filename: string
+export type GiftImageInput =
+  | { kind: 'file'; buffer: Buffer; filename: string }
+  | { kind: 'url'; url: string }
+
+async function uploadImage(weddingId: number, input: GiftImageInput): Promise<UploadedImage> {
+  if (input.kind === 'file') {
+    return uploadGiftImage(weddingId, input.buffer, input.filename)
+  }
+  try {
+    return await uploadGiftImageFromUrl(weddingId, input.url)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : (error as { message?: string })?.message
+    throw new HTTPException(422, {
+      message: `Could not upload image from imageUrl${reason ? `: ${reason}` : ''}`,
+    })
+  }
 }
 
 export type CreateGiftInput = Omit<CreateGiftRequest, 'image'>
@@ -55,7 +69,7 @@ export class GiftService extends AbstractService {
     let imagePublicId: string | null = null
 
     if (imageFile) {
-      const uploaded = await uploadGiftImage(data.weddingId, imageFile.buffer, imageFile.filename)
+      const uploaded = await uploadImage(data.weddingId, imageFile)
       image = uploaded.url
       imagePublicId = uploaded.publicId
     }
@@ -88,7 +102,7 @@ export class GiftService extends AbstractService {
 
     let uploaded: { url: string; publicId: string } | null = null
     if (imageFile) {
-      uploaded = await uploadGiftImage(existing.weddingId, imageFile.buffer, imageFile.filename)
+      uploaded = await uploadImage(existing.weddingId, imageFile)
       patch.image = { set: uploaded.url }
       patch.imagePublicId = { set: uploaded.publicId }
     }
