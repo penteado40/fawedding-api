@@ -7,13 +7,30 @@ import { zodErrorHook } from '../lib/validation'
 import type { AppEnv } from '../types/hono-env'
 import { AuthRequestSchema, AuthResponseSchema } from '../schemas/auth.schema'
 import { createAuthService } from '../services/auth.service'
+import { rateLimitMiddleware } from '../middlewares/rate-limit.middleware'
+import { RATE_LIMITS } from '../lib/rate-limit-config'
 
 const ONE_HOUR_SECONDS = 3600
 
 export const authController = new Hono<AppEnv>()
 
+// Keyed by IP + attempted email, so a credential-stuffing script rotating emails
+// against one IP (or one email from many IPs) still gets slowed down.
+const loginRateLimit = rateLimitMiddleware({
+  ...RATE_LIMITS.LOGIN,
+  extraKey: async (c) => {
+    try {
+      const body = await c.req.json()
+      return typeof body?.email === 'string' ? body.email.toLowerCase() : undefined
+    } catch {
+      return undefined
+    }
+  },
+})
+
 authController.post(
   '/login',
+  loginRateLimit,
   describeRoute({
     summary: 'Admin login',
     description: 'Authenticates an admin user with email and password. Returns a signed JWT (1 hour expiry) and the user profile.',

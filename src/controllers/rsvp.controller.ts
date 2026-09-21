@@ -9,8 +9,12 @@ import { WeddingIdParamSchema } from '../schemas/wedding.schema'
 import { RsvpRequestSchema, RsvpResponseSchema } from '../schemas/rsvp.schema'
 import { createRsvpService } from '../services/rsvp.service'
 import { createWeddingAccessService } from '../services/wedding-access.service'
+import { rateLimitMiddleware } from '../middlewares/rate-limit.middleware'
+import { RATE_LIMITS } from '../lib/rate-limit-config'
 
 export const rsvpController = new Hono<AppEnv>()
+
+const rsvpCreateRateLimit = rateLimitMiddleware(RATE_LIMITS.RSVP_CREATE)
 
 rsvpController.get(
   '/',
@@ -41,6 +45,7 @@ rsvpController.get(
 
 rsvpController.post(
   '/',
+  rsvpCreateRateLimit,
   describeRoute({
     summary: 'Create RSVP',
     description:

@@ -40,6 +40,7 @@ model GiftPayment {
 enum GiftPaymentStatus {
   PENDING
   CONFIRMED
+  CANCELLED
 }
 
 enum RsvpStatus {
@@ -93,6 +94,7 @@ model Rsvp {
   name        String
   email       String
   phone       String
+  message     String?
   status      RsvpStatus  @default(CONFIRMED)
   emailStatus EmailStatus @default(PENDING)
   emailSentAt DateTime?
@@ -123,6 +125,7 @@ model ApiToken {
   weddingId Int
   name      String   @unique
   token     String   @unique
+  tokenHash String?  @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { secureHeaders } from 'hono/secure-headers'
 import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 import { getPrisma } from './lib/prisma'
 import { startDocs } from './lib/docs'
 import { formatZodError } from './lib/validation'
+import { matchAllowedOrigin } from './lib/cors-config'
 import { authMiddleware } from './middlewares/auth.middleware'
 import { authController } from './controllers/auth.controller'
 import { giftController } from './controllers/gift.controller'
@@ -13,6 +15,8 @@ import { apiTokenController } from './controllers/api-token.controller'
 import type { AppEnv } from './types/hono-env'
 
 export const app = new Hono<AppEnv>().basePath('/api')
+
+app.use(secureHeaders())
 
 app.use(async (c, next) => {
   const url = process.env.DATABASE_URL
@@ -26,12 +30,11 @@ app.use(async (c, next) => {
 app.use(
   '*',
   cors({
-    origin: '*',
+    origin: matchAllowedOrigin,
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['POST', 'GET', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['Content-Length'],
     maxAge: 600,
-    credentials: true,
   }),
 )
 
@@ -50,7 +53,9 @@ app.onError((err, c) => {
   }
   console.error(err)
   c.status(500)
-  return c.json({ errors: err instanceof Error ? err.message : 'Internal Server Error' })
+  const isProduction = process.env.NODE_ENV === 'production'
+  const message = !isProduction && err instanceof Error ? err.message : 'Internal Server Error'
+  return c.json({ errors: message })
 })
 
 app.route('/auth', authController)
