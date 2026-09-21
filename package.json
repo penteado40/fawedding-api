@@ -30,7 +30,7 @@
     "react-dom": "^19.2.8",
     "resend": "^6.24.0",
     "zod": "^4.0.17",
-    "zod-openapi": "^5.3.1"
+    "zod-openapi": "^6.0.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
