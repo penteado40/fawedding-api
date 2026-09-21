@@ -1,0 +1,136 @@
+[
+  {
+    "weddingId": 4,
+    "name": "Orquídea ou arranjo de flores",
+    "price": 120,
+    "imageUrl": "https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Hidratante corporal",
+    "price": 100,
+    "imageUrl": "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Colônia O Boticário",
+    "description": "Água de cheiro / colônia da linha O Boticário.",
+    "price": 150,
+    "imageUrl": "https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Kit de cuidados pessoais",
+    "description": "Hidratante corporal e óleo de banho.",
+    "price": 180,
+    "imageUrl": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Buquê especial com chocolates",
+    "price": 180,
+    "imageUrl": "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Cesta de café da manhã",
+    "price": 200,
+    "imageUrl": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Kit Boticário",
+    "description": "Creme hidratante e body splash.",
+    "price": 190,
+    "imageUrl": "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Mini liquidificador Hamilton Beach",
+    "price": 250,
+    "imageUrl": "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Manicure e pedicure",
+    "price": 60,
+    "imageUrl": "https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Cabelo e maquiagem",
+    "description": "Para o dia da festa.",
+    "price": 300,
+    "imageUrl": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Colar de pérolas",
+    "price": 100,
+    "imageUrl": "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Relógio de pulso pequeno",
+    "price": 250,
+    "imageUrl": "https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Conjunto de saia e blazer",
+    "description": "O look da festa.",
+    "price": 350,
+    "imageUrl": "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Sapato para a festa",
+    "price": 180,
+    "imageUrl": "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Bolo de aniversário",
+    "price": 500,
+    "imageUrl": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Ensaio fotográfico",
+    "description": "Ensaio fotográfico da aniversariante.",
+    "price": 400,
+    "imageUrl": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Fotolivro da festa",
+    "description": "Álbum de fotografias impresso com os melhores momentos da festa.",
+    "price": 300,
+    "imageUrl": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Passeio de fim de semana",
+    "description": "Passeio de final de semana com acompanhante.",
+    "price": 1000,
+    "imageUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Almoço no restaurante favorito",
+    "price": 250,
+    "imageUrl": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Smart TV",
+    "price": 1500,
+    "imageUrl": "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=500&q=80"
+  },
+  {
+    "weddingId": 4,
+    "name": "Jogo de cama premium",
+    "price": 500,
+    "imageUrl": "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=500&q=80"
+  }
+]

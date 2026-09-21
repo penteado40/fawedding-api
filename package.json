@@ -10,6 +10,8 @@
     "prisma:migrate": "prisma migrate dev",
     "seed:token": "npx tsx prisma/seed-token.ts",
     "seed:user": "npx tsx prisma/seed-user.ts",
+    "seed:gifts": "npx tsx prisma/seed-gifts.ts",
+    "seed:gift-images": "npx tsx prisma/seed-gift-images.ts",
     "backfill:token-hash": "npx tsx prisma/backfill-token-hash.ts",
     "test": "vitest run",
     "test:watch": "vitest"
