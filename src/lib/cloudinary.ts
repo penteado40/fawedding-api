@@ -38,6 +38,7 @@ export async function uploadGiftImageFromUrl(weddingId: number, imageUrl: string
   const result = await cloudinary.uploader.upload(imageUrl, {
     folder: `fawedding/${weddingId}/gifts`,
     unique_filename: true,
+    allowed_formats: ['jpg', 'png', 'webp', 'gif'],
   })
   return { url: result.secure_url, publicId: result.public_id }
 }
