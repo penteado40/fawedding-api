@@ -91,6 +91,8 @@ emails/
 
 `ConfirmationEmailLayout` (in `generic.tsx`) is the one place that owns the actual markup — fonts, hero section, info cards, CTA, footer. Every wedding-specific template is just that layout configured with a color palette, hero image URL, and copy; adding a wedding never means duplicating HTML. The layout also degrades gracefully with no photo/venue data, which is what makes it usable as the fallback for weddings without a dedicated template.
 
+Step-by-step guide to the send flow, layout props, and adding a template for a new wedding: [docs/emails.md](docs/emails.md).
+
 ---
 
 ## Key Technical Decisions
