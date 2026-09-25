@@ -210,7 +210,8 @@ Lista presentes, com filtro opcional por `name` (parcial, case-insensitive) e `w
 
 ### `POST /gifts`
 Cria um presente. **Auth: JWT** — `403` se o `USER` não gerenciar o `weddingId` informado. Body `multipart/form-data`.
-- Form: `{ weddingId: number, name: string (1-200), price: number > 0, image?: file (image/jpeg, image/png, image/webp, image/gif, até 5MB) }`
+- Form: `{ weddingId: number, name: string (1-200), price: number > 0, image?: file (image/jpeg, image/png, image/webp, image/gif, até 5MB), imageUrl?: string }`
+- A imagem pode vir como arquivo (`image`) **ou** como link (`imageUrl`), nunca os dois (`400`). O `imageUrl` precisa ser `https` em um host permitido (hoje só `images.unsplash.com`, `400` caso contrário); o Cloudinary baixa a imagem e o gift guarda a URL do Cloudinary, não a original. `422` se o Cloudinary não conseguir baixar (link quebrado, formato inválido).
 - `201`: `{ data: Gift }`
 
 ### `GET /gifts/:id`
@@ -219,7 +220,7 @@ Busca um presente por id. **Auth: JWT** — `404` se não existir ou pertencer a
 
 ### `PUT /gifts/:id`
 Atualiza um presente (campos omitidos ficam como estavam; omitir `image` mantém a atual — enviar uma nova sobe pro Cloudinary e apaga a anterior). **Auth: JWT** — mesma regra de `404` cross-tenant do `GET /gifts/:id`. Body `multipart/form-data`.
-- Form: `{ name?, price?, image?: file }`
+- Form: `{ name?, price?, image?: file, imageUrl?: string }` — mesmas regras de `image`/`imageUrl` do `POST /gifts`; a imagem antiga é apagada do Cloudinary depois do update.
 - `200`: `{ data: Gift }`
 
 ### `DELETE /gifts/:id`
